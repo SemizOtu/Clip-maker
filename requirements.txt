@@ -1,0 +1,9 @@
+# Zorunlu bağımlılıklar
+curl_cffi>=0.7      # Kick API'sine erişim (Cloudflare için tarayıcı taklidi)
+numpy>=1.24         # Ses/chat sinyal analizi
+
+# Opsiyonel ama önerilen: API erişimi başarısız olursa yedek kaynak çözücü
+yt-dlp>=2024.10.22
+
+# Opsiyonel: otomatik altyazı için (--subtitles bayrağı)
+# pip install faster-whisper
