@@ -33,6 +33,7 @@ class Settings:
     ai_backend: str = "auto"                 # auto | claude | ollama | off
     ai_model: Optional[str] = None           # None -> sağlayıcı varsayılanı
     transcribe: bool = True                  # aday anların konuşmasını yazıya dök
+    transcribe_model: str = "base"           # jüri transcription modeli (tiny/base/small)
     judge_pool: int = 0                       # jüriye sunulacak aday sayısı (0 -> otomatik)
 
     # Çıktılar

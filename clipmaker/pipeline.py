@@ -198,17 +198,23 @@ def _ai_select(judge, candidates: list[Highlight], analysis_source: str,
     local_wav = cache_dir / "audio.wav"
     local_wav = local_wav if local_wav.exists() else None
     if do_tx:
-        log(f"  Konuşmalar yazıya dökülüyor ({len(candidates)} aday)...")
+        log(f"  Konuşmalar yazıya dökülüyor ({len(candidates)} aday, "
+            f"model={settings.transcribe_model})...")
     ai_cands: list = []
     for i, h in enumerate(candidates, 1):
         key = f"{round(h.start_s, 1)}"
         tx = transcripts.get(key, "")
         if do_tx and not tx:
-            tx = transcribe_window(analysis_source, h.start_s, h.end_s - h.start_s,
-                                   cache_dir, settings.language, settings.whisper_model,
+            # Tüm klibi değil, zirvenin etrafındaki ~30 sn'yi çevir (hız)
+            tw_start = max(h.start_s, h.peak_s - 15.0)
+            tw_dur = max(5.0, min(h.end_s, tw_start + 30.0) - tw_start)
+            t0 = time.time()
+            tx = transcribe_window(analysis_source, tw_start, tw_dur,
+                                   cache_dir, settings.language, settings.transcribe_model,
                                    local_wav=local_wav)
             transcripts[key] = tx
-            log(f"    aday {i}/{len(candidates)} ({fmt_ts(h.start_s)}) yazıya döküldü")
+            log(f"    aday {i}/{len(candidates)} ({fmt_ts(h.start_s)}) "
+                f"yazıya döküldü [{time.time() - t0:.0f} sn]")
         h.transcript = tx
         ai_cands.append(AICand(
             index=h.rank, start_ts=fmt_ts(h.start_s), end_ts=fmt_ts(h.end_s),

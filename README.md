@@ -201,7 +201,12 @@ output/kanaladi_9f10b2c3/
 | `--ai` | auto | yapay zeka motoru: `auto` / `claude` / `ollama` / `off` |
 | `--ai-model` | — | model adı (Claude: `claude-opus-4-8`, Ollama: `llama3.1`) |
 | `--judge-pool` | otomatik | jüriye sunulacak aday sayısı (varsayılan ≈ klip×3) |
+| `--transcribe-model` | base | jüri konuşma tanıma modeli: `tiny` (en hızlı) / `base` / `small` |
 | `--no-transcribe` | — | konuşmayı yazıya dökme; jüri yalnızca chat'e baksın |
+
+> **Yavaş bilgisayar / ekran kartı yok mu?** Konuşma tanıma işlemcide çalışır ve
+> ağır olabilir. Hız için: `--transcribe-model tiny --judge-pool 8` ekleyin ve ilk
+> denemede `--subtitles`'i bırakın (altyazı da modeli klip başına tekrar çalıştırır).
 | `--no-chat` / `--no-audio` | — | bir sinyali tamamen kapat |
 | `--quality` | best | klip kesiminde kullanılacak video kalitesi (`best`/`worst`) |
 | `--bucket` | 5 | analiz penceresi (saniye); küçültmek hassasiyeti artırır |

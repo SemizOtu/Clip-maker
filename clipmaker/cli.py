@@ -59,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "Ollama varsayılanı llama3.1)")
     g.add_argument("--no-transcribe", action="store_true",
                    help="aday anların konuşmasını yazıya dökme; jüri yalnızca chat'e baksın")
+    g.add_argument("--transcribe-model", default="base", metavar="AD",
+                   help="jüri için konuşma tanıma modeli: tiny (en hızlı) / base / small "
+                        "(varsayılan: base; zayıf bilgisayarda 'tiny' önerilir)")
     g.add_argument("--judge-pool", type=int, default=0, metavar="N",
                    help="jüriye sunulacak aday sayısı (0 = otomatik, ~klip sayısının 3 katı)")
 
@@ -114,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
         ai_backend=args.ai,
         ai_model=args.ai_model,
         transcribe=not args.no_transcribe,
+        transcribe_model=args.transcribe_model,
         judge_pool=args.judge_pool,
         out_dir=args.out,
         horizontal=not args.no_horizontal,

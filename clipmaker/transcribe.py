@@ -28,7 +28,12 @@ def transcription_available() -> bool:
 def _get_model(model_size: str):
     if model_size not in _model_cache:
         from faster_whisper import WhisperModel  # type: ignore
-        _model_cache[model_size] = WhisperModel(model_size, device="auto", compute_type="int8")
+        # CPU'da int8 en hızlısı; device="auto"nun GPU yoklama gecikmesinden kaçın
+        try:
+            _model_cache[model_size] = WhisperModel(
+                model_size, device="cpu", compute_type="int8")
+        except Exception:
+            _model_cache[model_size] = WhisperModel(model_size)
     return _model_cache[model_size]
 
 
