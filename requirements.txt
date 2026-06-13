@@ -5,5 +5,12 @@ numpy>=1.24         # Ses/chat sinyal analizi
 # Opsiyonel ama önerilen: API erişimi başarısız olursa yedek kaynak çözücü
 yt-dlp>=2024.10.22
 
-# Opsiyonel: otomatik altyazı için (--subtitles bayrağı)
-# pip install faster-whisper
+# Opsiyonel: otomatik altyazı + yapay zeka jürisi için konuşma tanıma
+# (aday anların metnini çıkarır). Kurmak için:
+#   pip install faster-whisper
+
+# Opsiyonel: yapay zeka jürisi — Claude API (en iyi kalite, --ai claude/auto).
+# ANTHROPIC_API_KEY ortam değişkenini ayarlayın. Kurmak için:
+#   pip install anthropic
+# Alternatif (ücretsiz/yerel): Ollama'yı kurup `ollama serve` çalıştırın
+# (https://ollama.com) — sistem otomatik bulur (--ai ollama/auto).

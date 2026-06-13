@@ -50,6 +50,18 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--limit-minutes", type=float, default=None, metavar="DK",
                    help="yalnızca ilk X dakikayı analiz et (hızlı deneme için)")
 
+    g = p.add_argument_group("yapay zeka jürisi (içeriği anlayıp en iyi anları seçer)")
+    g.add_argument("--ai", choices=("auto", "claude", "ollama", "off"), default="auto",
+                   help="AI motoru: auto (anahtar varsa Claude, yoksa Ollama, yoksa sinyal), "
+                        "claude, ollama ya da off (varsayılan: auto)")
+    g.add_argument("--ai-model", default=None, metavar="AD",
+                   help="kullanılacak model (Claude varsayılanı claude-opus-4-8, "
+                        "Ollama varsayılanı llama3.1)")
+    g.add_argument("--no-transcribe", action="store_true",
+                   help="aday anların konuşmasını yazıya dökme; jüri yalnızca chat'e baksın")
+    g.add_argument("--judge-pool", type=int, default=0, metavar="N",
+                   help="jüriye sunulacak aday sayısı (0 = otomatik, ~klip sayısının 3 katı)")
+
     g = p.add_argument_group("çıktı")
     g.add_argument("-o", "--out", type=Path, default=Path("output"), help="çıktı klasörü (varsayılan: output)")
     g.add_argument("--no-vertical", action="store_true", help="9:16 dikey versiyon üretme")
@@ -99,6 +111,10 @@ def main(argv: list[str] | None = None) -> int:
         agreement_weight=args.agreement,
         chat_lag_s=args.chat_lag,
         limit_minutes=args.limit_minutes,
+        ai_backend=args.ai,
+        ai_model=args.ai_model,
+        transcribe=not args.no_transcribe,
+        judge_pool=args.judge_pool,
         out_dir=args.out,
         horizontal=not args.no_horizontal,
         vertical=not args.no_vertical,

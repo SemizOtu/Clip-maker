@@ -21,6 +21,12 @@ class Highlight:
     chat_z: float = 0.0
     audio_z: float = 0.0
     top_messages: list = field(default_factory=list)
+    # Yapay zeka jürisi alanları (jüri çalışmazsa boş kalır)
+    ai_score: Optional[float] = None
+    category: str = ""
+    title: str = ""
+    reason: str = ""
+    transcript: str = ""
 
 
 def combine_signals(

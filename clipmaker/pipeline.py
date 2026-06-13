@@ -113,7 +113,7 @@ def run_pipeline(settings: Settings) -> int:
         log("HATA: Hiçbir sinyal üretilemedi (chat de ses de yok). Klip seçimi imkânsız.")
         return 1
 
-    # 5) Öne çıkan anların seçimi
+    # 5) Aday havuzu + (varsa) yapay zeka jürisiyle seçim
     log("[5/6] Öne çıkan anlar hesaplanıyor...")
     score = combine_signals(
         analysis_duration, settings.bucket_s,
@@ -121,20 +121,45 @@ def run_pipeline(settings: Settings) -> int:
         chat_weight=settings.chat_weight, audio_weight=settings.audio_weight,
         agreement_weight=settings.agreement_weight,
     )
-    highlights = pick_highlights(
+
+    from clipmaker.ai_judge import select_judge
+    judge, why_no_ai = select_judge(settings.ai_backend, settings.ai_model)
+    use_ai = judge is not None
+
+    # Yapay zeka açıksa jürinin seçebilmesi için geniş bir aday havuzu üret
+    pool_n = settings.num_clips
+    if use_ai:
+        auto_pool = max(settings.num_clips * 3, settings.num_clips + 6)
+        pool_n = settings.judge_pool if settings.judge_pool > 0 else min(auto_pool, 24)
+
+    candidates = pick_highlights(
         score, settings.bucket_s, analysis_duration,
-        num_clips=settings.num_clips,
+        num_clips=pool_n,
         clip_duration=settings.clip_duration,
         pre_peak_ratio=settings.pre_peak_ratio,
         min_gap_s=settings.clip_duration * settings.min_gap_factor,
+        min_z=(-1e9 if use_ai else 0.3),   # AI modunda havuzu daraltma
     )
-    annotate_highlights(highlights, chat=chat_signal, audio=audio_signal)
-    if not highlights:
+    annotate_highlights(candidates, chat=chat_signal, audio=audio_signal)
+    if not candidates:
         log("HATA: Öne çıkan an bulunamadı.")
         return 1
+
+    if use_ai:
+        highlights = _ai_select(judge, candidates, analysis_source, cache_dir, settings)
+    else:
+        log(f"  Yapay zeka jürisi devre dışı ({why_no_ai}); sinyal sıralaması kullanılıyor.")
+        highlights = candidates[:settings.num_clips]
+        for i, h in enumerate(highlights, 1):
+            h.rank = i
+
     for h in highlights:
-        log(f"  #{h.rank}  {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}  skor={h.score:.2f}"
-            f"  (chat z={h.chat_z}, ses z={h.audio_z})")
+        if h.ai_score is not None:
+            log(f"  #{h.rank}  {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}  "
+                f"AI={h.ai_score:.0f} [{h.category}] {h.title or '—'}")
+        else:
+            log(f"  #{h.rank}  {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}  skor={h.score:.2f}"
+                f"  (chat z={h.chat_z}, ses z={h.audio_z})")
 
     # 6) Klip üretimi
     clip_files: dict[int, dict] = {}
@@ -153,6 +178,80 @@ def run_pipeline(settings: Settings) -> int:
         for kind, p in clip_files[rank].items():
             log(f"  Klip {rank} ({kind}): {p}")
     return 0
+
+
+# ---- yapay zeka jürisi ----
+
+def _ai_select(judge, candidates: list[Highlight], analysis_source: str,
+               cache_dir: Path, settings: Settings) -> list[Highlight]:
+    """Adayları yazıya döküp jüriye sunar, en iyi N tanesini döndürür."""
+    from clipmaker.ai_judge import AIJudgeError, Candidate as AICand
+    from clipmaker.transcribe import transcribe_window, transcription_available
+
+    do_tx = settings.transcribe and transcription_available()
+    if settings.transcribe and not transcription_available():
+        log("  ! Konuşma yazıya dökme atlandı (faster-whisper kurulu değil); "
+            "jüri yalnızca chat tepkilerine bakacak.")
+
+    transcripts = _load_transcripts(cache_dir)
+    if do_tx:
+        log(f"  Konuşmalar yazıya dökülüyor ({len(candidates)} aday)...")
+    ai_cands: list = []
+    for h in candidates:
+        key = f"{round(h.start_s, 1)}"
+        tx = transcripts.get(key, "")
+        if do_tx and not tx:
+            tx = transcribe_window(analysis_source, h.start_s, h.end_s - h.start_s,
+                                   cache_dir, settings.language, settings.whisper_model)
+            transcripts[key] = tx
+        h.transcript = tx
+        ai_cands.append(AICand(
+            index=h.rank, start_ts=fmt_ts(h.start_s), end_ts=fmt_ts(h.end_s),
+            transcript=tx,
+            chat=[{"user": m["user"], "text": m["text"]} for m in h.top_messages],
+            chat_z=h.chat_z, audio_z=h.audio_z,
+        ))
+    if do_tx:
+        _save_transcripts(cache_dir, transcripts)
+
+    log(f"  Yapay zeka jürisi ({judge.name}) {len(ai_cands)} adayı değerlendiriyor...")
+    try:
+        verdicts = judge.judge(ai_cands, settings.num_clips)
+    except AIJudgeError as e:
+        log(f"  ! Yapay zeka jürisi başarısız: {e}")
+        log("  > Sinyal sıralamasına dönülüyor.")
+        chosen = candidates[:settings.num_clips]
+        for i, h in enumerate(chosen, 1):
+            h.rank = i
+        return chosen
+
+    vmap = {v.index: v for v in verdicts}
+    for h in candidates:
+        v = vmap.get(h.rank)
+        if v is not None:
+            h.ai_score, h.category, h.title, h.reason = v.score, v.category, v.title, v.reason
+        else:
+            h.ai_score = 0.0  # jüri puanlamadıysa en sona düşsün
+    ranked = sorted(candidates, key=lambda h: (h.ai_score or 0.0), reverse=True)
+    chosen = ranked[:settings.num_clips]
+    for i, h in enumerate(chosen, 1):
+        h.rank = i
+    return chosen
+
+
+def _load_transcripts(cache_dir: Path) -> dict:
+    f = cache_dir / "transcripts.json"
+    if f.exists():
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _save_transcripts(cache_dir: Path, transcripts: dict) -> None:
+    (cache_dir / "transcripts.json").write_text(
+        json.dumps(transcripts, ensure_ascii=False), encoding="utf-8")
 
 
 # ---- yardımcılar ----
@@ -297,7 +396,8 @@ def _produce_clips(
             # Dikey 9:16 sürüm — altyazı burada büyük, alt-orta stille gömülür
             if settings.vertical:
                 vertical_path = workdir / "clips" / "vertical" / f"{stem}_dikey.mp4"
-                make_vertical(raw_h, vertical_path, title=settings.title)
+                overlay_title = settings.title if settings.title is not None else (h.title or None)
+                make_vertical(raw_h, vertical_path, title=overlay_title)
                 if srt is not None:
                     subbed = _burn(vertical_path, srt,
                                    workdir / "clips" / "vertical" / f"{stem}_dikey_altyazili.mp4",

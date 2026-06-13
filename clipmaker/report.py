@@ -53,16 +53,46 @@ def write_report(
         f"- **Süre:** {fmt_ts(vod.duration_s or 0)}",
         f"- **Üretim zamanı:** {data['generated_at']}",
         "",
-        "| # | Zaman | Zirve | Skor | Chat | Ses | Öne çıkan mesajlar |",
-        "|---|-------|-------|------|------|-----|--------------------|",
     ]
-    for h in highlights:
-        msgs = "; ".join(f"{m['user']}: {m['text']}" for m in h.top_messages[:3]) or "—"
-        msgs = msgs.replace("|", "\\|")
-        lines.append(
-            f"| {h.rank} | {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)} | {fmt_ts(h.peak_s)} "
-            f"| {h.score:.2f} | {h.chat_z:.1f} | {h.audio_z:.1f} | {msgs} |"
-        )
+
+    used_ai = any(h.ai_score is not None for h in highlights)
+    if used_ai:
+        lines += [
+            "| # | Zaman | AI | Kategori | Başlık | Skor | Chat | Ses |",
+            "|---|-------|----|----------|--------|------|------|-----|",
+        ]
+        for h in highlights:
+            title = (h.title or "—").replace("|", "\\|")
+            lines.append(
+                f"| {h.rank} | {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)} "
+                f"| {('%.0f' % h.ai_score) if h.ai_score is not None else '—'} "
+                f"| {h.category or '—'} | {title} | {h.score:.2f} | {h.chat_z:.1f} | {h.audio_z:.1f} |"
+            )
+        lines += ["", "## Klip detayları", ""]
+        for h in highlights:
+            lines.append(f"### {h.rank}. {h.title or fmt_ts(h.start_s)}  "
+                         f"(AI {('%.0f' % h.ai_score) if h.ai_score is not None else '—'}/100, {h.category or '—'})")
+            lines.append(f"- **Zaman:** {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}")
+            if h.reason:
+                lines.append(f"- **Neden seçildi:** {h.reason}")
+            if h.transcript:
+                lines.append(f"- **Konuşma:** {h.transcript[:300]}")
+            msgs = "; ".join(f"{m['user']}: {m['text']}" for m in h.top_messages[:3])
+            if msgs:
+                lines.append(f"- **Chat:** {msgs}")
+            lines.append("")
+    else:
+        lines += [
+            "| # | Zaman | Zirve | Skor | Chat | Ses | Öne çıkan mesajlar |",
+            "|---|-------|-------|------|------|-----|--------------------|",
+        ]
+        for h in highlights:
+            msgs = "; ".join(f"{m['user']}: {m['text']}" for m in h.top_messages[:3]) or "—"
+            msgs = msgs.replace("|", "\\|")
+            lines.append(
+                f"| {h.rank} | {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)} | {fmt_ts(h.peak_s)} "
+                f"| {h.score:.2f} | {h.chat_z:.1f} | {h.audio_z:.1f} | {msgs} |"
+            )
     lines += ["", "## Dosyalar", ""]
     for h in highlights:
         files = clip_files.get(h.rank, {})

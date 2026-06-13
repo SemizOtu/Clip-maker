@@ -29,6 +29,12 @@ class Settings:
     chat_lag_s: float = 4.0                  # chat'in olaya göre gecikmesi (telafi)
     limit_minutes: Optional[float] = None    # sadece ilk X dakikayı analiz et (test için)
 
+    # Yapay zeka jürisi (içeriği anlayıp gerçekten ilgi çekici anları seçer)
+    ai_backend: str = "auto"                 # auto | claude | ollama | off
+    ai_model: Optional[str] = None           # None -> sağlayıcı varsayılanı
+    transcribe: bool = True                  # aday anların konuşmasını yazıya dök
+    judge_pool: int = 0                       # jüriye sunulacak aday sayısı (0 -> otomatik)
+
     # Çıktılar
     out_dir: Path = field(default_factory=lambda: Path("output"))
     horizontal: bool = True

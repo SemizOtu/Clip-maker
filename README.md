@@ -10,6 +10,22 @@ ve sosyal medyada paylaşıma hazır klipler üretir:
 
 ## Nasıl çalışır?
 
+Sistem **iki aşamalıdır**: önce ucuz sinyallerle tüm yayından bol **aday** çıkarır,
+sonra (varsa) bir **yapay zeka jürisi** bu adayların *içeriğini* okuyup gerçekten
+komik/çarpıcı olanları seçer. Bu, OpusClip'in açık kaynak alternatiflerinin
+([SamurAIGPT](https://github.com/samuraigpt/ai-youtube-shorts-generator),
+[ClipsAI](https://github.com/ClipsAI/clipsai), [openshorts](https://github.com/mutonby/openshorts))
+kullandığı **"Whisper ile yazıya dök → LLM ile öne çıkanı seç → dikey kes"**
+yaklaşımının livestream'e uyarlanmış hâlidir.
+
+```
+Aday üretimi (sinyaller) ──► aday havuzu ──► [yapay zeka jürisi] ──► en iyi N klip
+   chat + ses                                 transcript + chat okur,
+   (tüm yayını ucuza tarar)                    0-100 puanlar, başlık üretir
+```
+
+### 1) Aday üretimi — iki sinyal
+
 Sistem iki bağımsız sinyali birleştirerek "dikkat çekici an" skoru üretir:
 
 1. **Chat analizi** — Kick'in VOD chat tekrarı taranır. Mesaj yoğunluğundaki ani artışlar,
@@ -35,7 +51,45 @@ Bu yaklaşımı "sadece yoğun/yüksek anı al"dan ayıran dört nokta:
   göre konumlandırılır.
 
 İki sinyal dayanıklı z-skoruna çevrilip ağırlıklı birleştirilir (varsayılan %60 chat +
-%40 ses) ve uzlaşma bonusu eklenir; çakışmayan en iyi N pencere seçilip ffmpeg ile kesilir.
+%40 ses) ve uzlaşma bonusu eklenir; çakışmayan en iyi pencereler aday havuzu olur.
+
+### 2) Yapay zeka jürisi — içeriği anlar
+
+Sinyaller yalnızca "hareketli" anı bulur; ama **hareketli ≠ komik**. Asıl zeka burada:
+her aday anın **konuşması Whisper ile yazıya dökülür** ve o anki **chat tepkileriyle**
+birlikte bir dil modeline (LLM) sunulur. Model her adayı *tek başına paylaşılan bir klip
+olarak* ne kadar komik / çarpıcı / dramatik / ilgi çekici olduğuna göre **0-100 puanlar**,
+bir **kategori** ve paylaşıma hazır bir **başlık** üretir. Klipler bu yapay zeka puanına
+göre seçilir — yani "sadece kalabalık olduğu için" öne çıkan sönük anlar elenir.
+
+Yapay zeka motoru **otomatik seçilir** (kademeli, hiçbiri yoksa sistem yine çalışır):
+
+| Öncelik | Motor | Gereksinim | Kalite |
+|---|---|---|---|
+| 1 | **Claude API** | `ANTHROPIC_API_KEY` + `pip install anthropic` | En iyi |
+| 2 | **Ollama (yerel, ücretsiz)** | `ollama serve` çalışıyor olmalı | İyi |
+| 3 | **Sinyal sıralaması** | — (her zaman var) | Temel |
+
+**Kurulum — Claude (önerilen):**
+```bash
+pip install anthropic faster-whisper
+# Windows (kalıcı): setx ANTHROPIC_API_KEY "sk-ant-..."   (yeni terminal açın)
+# Mac/Linux:        export ANTHROPIC_API_KEY="sk-ant-..."
+python -m clipmaker <link>          # --ai auto: anahtarı otomatik bulur
+```
+> Maliyet düşüktür: jüriye yalnızca aday anların kısa metni gönderilir; VOD başına
+> birkaç–on sent civarı (varsayılan model `claude-opus-4-8`). Daha ucuzu için
+> `--ai-model claude-haiku-4-5`. Anahtarı [console.anthropic.com](https://console.anthropic.com)'dan alırsınız.
+
+**Kurulum — Ollama (ücretsiz/yerel):**
+```bash
+pip install faster-whisper
+# https://ollama.com indirip kurun, sonra:
+ollama pull llama3.1
+python -m clipmaker <link> --ai ollama   # ya da --ai auto
+```
+
+Yapay zekayı kapatmak için `--ai off` (yalnızca sinyaller kullanılır).
 
 ```
 Kick VOD linki ──► Kick API (curl_cffi) ──► m3u8 kaynağı + chat tekrarı
@@ -91,6 +145,12 @@ python -m clipmaker <link> --limit-minutes 30
 
 # Türkçe otomatik altyazı gömülü klipler:
 python -m clipmaker <link> --subtitles --lang tr
+
+# Yapay zeka jürisi (otomatik) + altyazı — en iyi sonuç:
+python -m clipmaker <link> --ai auto --subtitles --lang tr
+
+# Ucuz model ile, daha fazla aday değerlendir:
+python -m clipmaker <link> --ai claude --ai-model claude-haiku-4-5 --judge-pool 20
 ```
 
 ### Altyazı (önemli)
@@ -138,6 +198,10 @@ output/kanaladi_9f10b2c3/
 | `--chat-weight` / `--audio-weight` | 0.6 / 0.4 | sinyal ağırlıkları |
 | `--agreement` | 0.7 | chat+ses aynı anda patlarsa eklenen uzlaşma bonusu |
 | `--chat-lag` | 4 | chat'in olaya göre gecikmesi (sn); klibi öne kaydırır |
+| `--ai` | auto | yapay zeka motoru: `auto` / `claude` / `ollama` / `off` |
+| `--ai-model` | — | model adı (Claude: `claude-opus-4-8`, Ollama: `llama3.1`) |
+| `--judge-pool` | otomatik | jüriye sunulacak aday sayısı (varsayılan ≈ klip×3) |
+| `--no-transcribe` | — | konuşmayı yazıya dökme; jüri yalnızca chat'e baksın |
 | `--no-chat` / `--no-audio` | — | bir sinyali tamamen kapat |
 | `--quality` | best | klip kesiminde kullanılacak video kalitesi (`best`/`worst`) |
 | `--bucket` | 5 | analiz penceresi (saniye); küçültmek hassasiyeti artırır |
@@ -188,8 +252,10 @@ ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
 |---|---|
 | `clipmaker/kick_api.py` | Kick API istemcisi (curl_cffi ile Cloudflare aşımı), VOD + chat tekrarı |
 | `clipmaker/chat_analysis.py` | mesaj yoğunluğu + hype kalıpları → z-skor sinyali |
-| `clipmaker/audio_analysis.py` | RMS ses enerjisi → z-skor sinyali |
-| `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız zirve seçimi |
+| `clipmaker/audio_analysis.py` | RMS ses enerjisi + yenilik → z-skor sinyali |
+| `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız aday seçimi |
+| `clipmaker/transcribe.py` | aday anların konuşmasını Whisper ile yazıya döker |
+| `clipmaker/ai_judge.py` | yapay zeka jürisi (Claude / Ollama) — içeriği puanlar |
 | `clipmaker/media.py` | ffmpeg: varyant seçimi, kesim, 9:16 dönüştürme, kapak |
 | `clipmaker/subtitles.py` | opsiyonel faster-whisper altyazı |
 | `clipmaker/pipeline.py` | uçtan uca akış + önbellekleme |

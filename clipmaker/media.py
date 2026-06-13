@@ -199,3 +199,26 @@ def extract_analysis_audio(
     args += ["-vn", "-ac", "1", "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(out_wav)]
     run_ffmpeg(args)
     return out_wav
+
+
+def extract_audio_segment(
+    source: str,
+    out_wav: Path,
+    start_s: float,
+    dur_s: float,
+    sample_rate: int = 16000,
+) -> Path:
+    """Kaynaktan tek bir zaman penceresinin sesini WAV olarak çıkarır.
+
+    Konuşma tanıma (Whisper) için 16 kHz mono kullanılır. -ss'in -i'den önce
+    gelmesi HLS'te yalnızca gerekli kısmın indirilmesini sağlar.
+    """
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    run_ffmpeg(
+        ["-y"]
+        + http_input_args(source)
+        + ["-ss", f"{max(0.0, start_s):.3f}", "-i", source, "-t", f"{dur_s:.3f}",
+           "-vn", "-ac", "1", "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(out_wav)]
+    )
+    return out_wav
+
