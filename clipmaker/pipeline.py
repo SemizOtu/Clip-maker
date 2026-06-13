@@ -194,16 +194,21 @@ def _ai_select(judge, candidates: list[Highlight], analysis_source: str,
             "jüri yalnızca chat tepkilerine bakacak.")
 
     transcripts = _load_transcripts(cache_dir)
+    # Konuşmayı uzaktan değil, önceden indirilen yerel ses dosyasından kes (hızlı/güvenli)
+    local_wav = cache_dir / "audio.wav"
+    local_wav = local_wav if local_wav.exists() else None
     if do_tx:
         log(f"  Konuşmalar yazıya dökülüyor ({len(candidates)} aday)...")
     ai_cands: list = []
-    for h in candidates:
+    for i, h in enumerate(candidates, 1):
         key = f"{round(h.start_s, 1)}"
         tx = transcripts.get(key, "")
         if do_tx and not tx:
             tx = transcribe_window(analysis_source, h.start_s, h.end_s - h.start_s,
-                                   cache_dir, settings.language, settings.whisper_model)
+                                   cache_dir, settings.language, settings.whisper_model,
+                                   local_wav=local_wav)
             transcripts[key] = tx
+            log(f"    aday {i}/{len(candidates)} ({fmt_ts(h.start_s)}) yazıya döküldü")
         h.transcript = tx
         ai_cands.append(AICand(
             index=h.rank, start_ts=fmt_ts(h.start_s), end_ts=fmt_ts(h.end_s),

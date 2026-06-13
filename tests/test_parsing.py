@@ -108,5 +108,53 @@ class TestMasterPlaylist(unittest.TestCase):
         self.assertEqual(pick_variant(pl, "best", self.base), self.base)
 
 
+class TestSliceWav(unittest.TestCase):
+    """Yerel WAV diliminin (transcription için) ağ/ffmpeg olmadan çalıştığını doğrula."""
+
+    def test_slice_offset_and_length(self):
+        import tempfile
+        import wave
+        from pathlib import Path
+
+        from clipmaker.media import slice_wav
+
+        sr = 16000
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "src.wav"
+            # 10 sn: her örneğin değeri (frame_index % 1000) — konum doğrulamak için
+            frames = bytearray()
+            for i in range(sr * 10):
+                frames += int(i % 1000).to_bytes(2, "little", signed=True)
+            with wave.open(str(src), "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+                w.writeframes(bytes(frames))
+
+            out = Path(d) / "out.wav"
+            slice_wav(src, out, start_s=3.0, dur_s=2.0)
+            with wave.open(str(out), "rb") as w:
+                self.assertEqual(w.getframerate(), sr)
+                self.assertEqual(w.getnframes(), sr * 2)        # 2 sn
+                first = int.from_bytes(w.readframes(1), "little", signed=True)
+            self.assertEqual(first, (3 * sr) % 1000)            # 3. sn'den başladı
+
+    def test_slice_clamps_past_end(self):
+        import tempfile
+        import wave
+        from pathlib import Path
+
+        from clipmaker.media import slice_wav
+
+        sr = 8000
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "s.wav"
+            with wave.open(str(src), "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+                w.writeframes(b"\x00\x00" * (sr * 2))  # 2 sn
+            out = Path(d) / "o.wav"
+            slice_wav(src, out, start_s=5.0, dur_s=3.0)  # dosya sonunun ötesi
+            with wave.open(str(out), "rb") as w:
+                self.assertEqual(w.getnframes(), 0)  # sınır dışı -> boş, çökmez
+
+
 if __name__ == "__main__":
     unittest.main()

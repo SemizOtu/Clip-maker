@@ -36,9 +36,15 @@ def http_input_args(source: str) -> list[str]:
     ]
 
 
-def run_ffmpeg(args: list[str], tool: str = "ffmpeg") -> str:
+def run_ffmpeg(args: list[str], tool: str = "ffmpeg", timeout: Optional[float] = None) -> str:
     cmd = [tool, "-hide_banner", "-loglevel", "error"] + args
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise MediaError(
+            f"{tool} {timeout:.0f} sn içinde yanıt vermedi (muhtemelen uzaktaki "
+            f"kaynağa erişim takıldı).\nKomut: {' '.join(cmd)}"
+        )
     if proc.returncode != 0:
         tail = (proc.stderr or "").strip().splitlines()[-8:]
         raise MediaError(f"{tool} hata verdi:\n" + "\n".join(tail) + f"\nKomut: {' '.join(cmd)}")
@@ -218,7 +224,33 @@ def extract_audio_segment(
         ["-y"]
         + http_input_args(source)
         + ["-ss", f"{max(0.0, start_s):.3f}", "-i", source, "-t", f"{dur_s:.3f}",
-           "-vn", "-ac", "1", "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(out_wav)]
+           "-vn", "-ac", "1", "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(out_wav)],
+        timeout=180,
     )
+    return out_wav
+
+
+def slice_wav(src_wav: Path, out_wav: Path, start_s: float, dur_s: float) -> Path:
+    """Yerel bir WAV dosyasından zaman penceresini anında keser (ağ yok, ffmpeg yok).
+
+    Aday anların konuşmasını yazıya dökerken, sesi uzaktan yeniden indirmek
+    yerine önceden indirilmiş analiz WAV'ından kesmek için kullanılır.
+    """
+    import wave
+
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(src_wav), "rb") as w:
+        sr = w.getframerate()
+        ch = w.getnchannels()
+        sw = w.getsampwidth()
+        nframes = w.getnframes()
+        start_frame = max(0, min(int(start_s * sr), nframes))
+        w.setpos(start_frame)
+        data = w.readframes(max(0, int(dur_s * sr)))
+    with wave.open(str(out_wav), "wb") as o:
+        o.setnchannels(ch)
+        o.setsampwidth(sw)
+        o.setframerate(sr)
+        o.writeframes(data)
     return out_wav
 

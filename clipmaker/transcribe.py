@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from clipmaker.media import MediaError, extract_audio_segment
+from clipmaker.media import MediaError, extract_audio_segment, slice_wav
 
 _model_cache: dict = {}
 
@@ -39,14 +39,23 @@ def transcribe_window(
     work_dir: Path,
     language: str = "tr",
     model_size: str = "small",
+    local_wav: Optional[Path] = None,
 ) -> str:
-    """Verilen pencerenin konuşmasını metne çevirir. Başarısızsa "" döner."""
+    """Verilen pencerenin konuşmasını metne çevirir. Başarısızsa "" döner.
+
+    local_wav verilmişse (önceden indirilmiş analiz sesi) pencere bu yerel
+    dosyadan anında kesilir — uzaktaki kaynağa erişilmez (hız + güvenilirlik).
+    Yoksa kaynaktan ffmpeg ile (zaman aşımlı) çıkarılır.
+    """
     if not transcription_available():
         return ""
     seg = work_dir / "seg.wav"
     try:
-        extract_audio_segment(source, seg, start_s, dur_s, sample_rate=16000)
-    except MediaError:
+        if local_wav is not None and Path(local_wav).exists():
+            slice_wav(Path(local_wav), seg, start_s, dur_s)
+        else:
+            extract_audio_segment(source, seg, start_s, dur_s, sample_rate=16000)
+    except (MediaError, OSError, EOFError):
         return ""
     try:
         model = _get_model(model_size)
