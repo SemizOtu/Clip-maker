@@ -30,10 +30,18 @@ def combine_signals(
     audio: Optional[AudioSignal] = None,
     chat_weight: float = 0.6,
     audio_weight: float = 0.4,
+    agreement_weight: float = 0.7,
 ) -> np.ndarray:
-    """Chat ve ses z-skorlarını ağırlıklı tek skora indirger.
+    """Chat ve ses z-skorlarını tek skora indirger.
 
-    Sinyallerden biri yoksa ağırlıklar kalan sinyale aktarılır.
+    İki bileşen:
+      1) Ağırlıklı toplam — her sinyalin tek başına katkısı.
+      2) Uzlaşma bonusu — hem chat'in hem sesin AYNI ANDA yükseldiği anlar
+         gerçek komik/çarpıcı anlardır. Yalnızca müzik (ses var, chat yok)
+         ya da yalnızca selamlaşma spam'i (chat var, ses yok) bu bonusu
+         alamaz; ikisinin pozitif kısımlarının geometrik ortalaması eklenir.
+
+    Sinyallerden biri yoksa ağırlıklar kalan sinyale aktarılır, bonus 0 olur.
     """
     n = max(1, math.ceil(duration_s / bucket_s))
 
@@ -48,11 +56,13 @@ def combine_signals(
     if total <= 0:
         raise ValueError("En az bir sinyal (chat ya da ses) gerekli.")
 
-    score = np.zeros(n)
-    if chat is not None:
-        score += (w_chat / total) * fit(chat.z)
-    if audio is not None:
-        score += (w_audio / total) * fit(audio.z)
+    cz = fit(chat.z) if chat is not None else np.zeros(n)
+    az = fit(audio.z) if audio is not None else np.zeros(n)
+
+    score = (w_chat / total) * cz + (w_audio / total) * az
+    if chat is not None and audio is not None and agreement_weight > 0:
+        agree = np.sqrt(np.clip(cz, 0.0, None) * np.clip(az, 0.0, None))
+        score = score + agreement_weight * agree
     return score
 
 
@@ -79,7 +89,7 @@ def pick_highlights(
     for idx in order:
         if len(chosen) >= num_clips:
             break
-        peak = (float(idx) + 0.5) * bucket_s
+        peak = _refine_peak(score, int(idx), bucket_s)
         if peak > duration_s:
             continue
         if any(abs(peak - h.peak_s) < min_gap_s for h in chosen):
@@ -98,6 +108,23 @@ def pick_highlights(
             score=s,
         ))
     return chosen
+
+
+def _refine_peak(score: np.ndarray, idx: int, bucket_s: float) -> float:
+    """Komşu pencerelere parabol oturtarak zirveyi pencere-altı çözer.
+
+    Skor zirvesi tam pencere ortasında olmayabilir; üç noktalı parabol
+    interpolasyonu ile gerçek tepe noktasına daha iyi yaklaşırız.
+    """
+    center = float(idx) + 0.5
+    if 0 < idx < len(score) - 1:
+        a, b, c = float(score[idx - 1]), float(score[idx]), float(score[idx + 1])
+        denom = a - 2.0 * b + c
+        if abs(denom) > 1e-9:
+            offset = 0.5 * (a - c) / denom
+            offset = max(-0.5, min(0.5, offset))
+            center += offset
+    return center * bucket_s
 
 
 def annotate_highlights(

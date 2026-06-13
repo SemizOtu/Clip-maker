@@ -81,6 +81,31 @@ class TestEndToEndLocal(unittest.TestCase):
         self.assertTrue(thumb.exists())
         self.assertGreater(thumb.stat().st_size, 1000)
 
+    def test_04_subtitle_burn(self):
+        """Altyazı gömme yolunu whisper olmadan, elle SRT ile doğrula."""
+        from clipmaker.subtitles import VERTICAL_STYLE, burn_subtitles
+
+        clip = self.tmp / "clips" / "sub_src.mp4"
+        cut_clip(str(self.video), start_s=0.0, duration_s=10.0, out_path=clip)
+        srt = self.tmp / "test.srt"
+        srt.write_text(
+            "1\n00:00:00,500 --> 00:00:03,000\nMerhaba dünya\n\n"
+            "2\n00:00:03,500 --> 00:00:06,000\nİkinci satır\n",
+            encoding="utf-8",
+        )
+        # Yatay stil
+        h_out = self.tmp / "clips" / "sub_h.mp4"
+        burn_subtitles(clip, srt, h_out)
+        self.assertTrue(h_out.exists() and h_out.stat().st_size > 1000)
+
+        # Dikey: önce 9:16'ya çevir, sonra büyük stille göm
+        vert = self.tmp / "clips" / "sub_v.mp4"
+        make_vertical(clip, vert)
+        v_out = self.tmp / "clips" / "sub_v_subbed.mp4"
+        burn_subtitles(vert, srt, v_out, style=VERTICAL_STYLE)
+        self.assertTrue(v_out.exists() and v_out.stat().st_size > 1000)
+        self.assertAlmostEqual(ffprobe_duration(str(v_out)), 10.0, delta=1.5)
+
 
 if __name__ == "__main__":
     unittest.main()

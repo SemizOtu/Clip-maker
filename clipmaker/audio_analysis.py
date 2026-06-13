@@ -1,8 +1,10 @@
 """Ses enerjisinden heyecan sinyali çıkarımı.
 
-Yayıncının bağırması, gülmesi ya da ortamın hareketlenmesi ses enerjisinde
-(RMS) ani sıçramalar yaratır. WAV pencerelere bölünür, RMS hesaplanır ve
-dayanıklı z-skoru alınır.
+Önemli olan yalnızca "yüksek ses" (intro müziği, sabit ortam gürültüsü
+de yüksektir) değil, "ani ses değişimi"dir: yayıncının birden bağırması,
+gülmesi, ortamın patlaması. Bu yüzden mutlak RMS düzeyine ek olarak,
+yerel ortalamanın üzerine çıkan ani sıçramayı (onset/novelty) ölçer ve
+ikisini birleştiririz.
 """
 from __future__ import annotations
 
@@ -13,18 +15,19 @@ from typing import Optional
 
 import numpy as np
 
-from clipmaker.chat_analysis import robust_z, smooth
+from clipmaker.chat_analysis import robust_z, rolling_baseline, smooth
 
 
 @dataclass
 class AudioSignal:
     bucket_s: float
     rms: np.ndarray
+    novelty: np.ndarray           # yerel ortalamanın üzerine çıkan ani sıçrama
     z: np.ndarray
 
 
 def compute_rms(wav_path: Path, bucket_s: float = 5.0) -> Optional[AudioSignal]:
-    """WAV dosyasını pencere pencere okuyup RMS enerjisini hesaplar."""
+    """WAV dosyasını pencere pencere okuyup RMS + yenilik sinyalini hesaplar."""
     try:
         with wave.open(str(wav_path), "rb") as w:
             sr = w.getframerate()
@@ -48,5 +51,10 @@ def compute_rms(wav_path: Path, bucket_s: float = 5.0) -> Optional[AudioSignal]:
     if not values:
         return None
     rms = np.array(values)
-    z = robust_z(smooth(rms, 3))
-    return AudioSignal(bucket_s=bucket_s, rms=rms, z=z)
+    # yenilik: ~30 sn'lik yerel ortalamanın üzerine çıkan pozitif sıçrama
+    baseline = rolling_baseline(rms, win=max(5, int(round(30.0 / bucket_s))))
+    novelty = np.clip(rms - baseline, 0.0, None)
+    # mutlak düzey + yenilik (yenilik baskın); tek normalleştirme
+    combined = smooth(rms, 3) + 1.6 * novelty
+    z = robust_z(combined)
+    return AudioSignal(bucket_s=bucket_s, rms=rms, novelty=novelty, z=z)

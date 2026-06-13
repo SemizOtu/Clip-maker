@@ -14,13 +14,28 @@ Sistem iki bağımsız sinyali birleştirerek "dikkat çekici an" skoru üretir:
 
 1. **Chat analizi** — Kick'in VOD chat tekrarı taranır. Mesaj yoğunluğundaki ani artışlar,
    kahkaha kalıpları (`HAHAHA`, `sjsjsj`, `KEKW`...), Türkçe/evrensel heyecan ifadeleri
-   (`OHA`, `yok artık`, `EFSANE`, `POG`...), **"kliple!" çağrıları**, emote spam'i ve
-   BÜYÜK HARF bağırışları puanlanır.
-2. **Ses analizi** — yayının ses enerjisi (RMS) ölçülür; yayıncının bağırdığı, güldüğü,
-   ortamın hareketlendiği anlardaki ses sıçramaları yakalanır.
+   (`OHA`, `yok artık`, `EFSANE`, `POG`...), **"kliple!" çağrıları**, emote spam'i,
+   **kopyala-yapıştır dalgaları** (aynı mesajın onlarca kişiden gelmesi) ve BÜYÜK HARF
+   bağırışları puanlanır. Bot komutları (`!discord`) ve saf linkler elenir.
+2. **Ses analizi** — yalnızca "yüksek ses" değil, **ani ses değişimi** (onset/novelty)
+   yakalanır: yayıncının birden bağırması, gülmesi, ortamın patlaması. Sürekli intro müziği
+   gibi sabit yükseklikler elenir.
 
-İki sinyal dayanıklı z-skoruna çevrilip ağırlıklı olarak birleştirilir (varsayılan:
-%60 chat + %40 ses), çakışmayan en iyi N pencere seçilir ve klipler ffmpeg ile kesilir.
+Bu yaklaşımı "sadece yoğun/yüksek anı al"dan ayıran dört nokta:
+
+- **Chat gecikmesi telafisi** — chat, ekrandaki olaydan ~4 sn *sonra* tepki verir
+  (yayın gecikmesi + insan tepkisi + yazma süresi). Sinyal öne kaydırılır ki klip,
+  chat tepkisinin değil, **tepkiyi doğuran anın** üzerine otursun.
+- **Patlama (burst) tespiti** — "sürekli aktif chat" değil, yerel ortalamanın üzerine
+  **aniden sıçrayan** chat dikkat çekici anı işaret eder.
+- **Uzlaşma bonusu** — hem yayıncının (ses) hem de izleyicinin (chat) **aynı anda**
+  patladığı anlar gerçek komik/çarpıcı anlardır ve ekstra puan alır. Yalnızca müzik
+  (ses var, chat yok) ya da yalnızca selamlaşma spam'i (chat var, ses yok) bu bonusu alamaz.
+- **Pencere-altı zirve** — klip, parabol interpolasyonuyla bulunan gerçek tepe noktasına
+  göre konumlandırılır.
+
+İki sinyal dayanıklı z-skoruna çevrilip ağırlıklı birleştirilir (varsayılan %60 chat +
+%40 ses) ve uzlaşma bonusu eklenir; çakışmayan en iyi N pencere seçilip ffmpeg ile kesilir.
 
 ```
 Kick VOD linki ──► Kick API (curl_cffi) ──► m3u8 kaynağı + chat tekrarı
@@ -78,6 +93,23 @@ python -m clipmaker <link> --limit-minutes 30
 python -m clipmaker <link> --subtitles --lang tr
 ```
 
+### Altyazı (önemli)
+
+Otomatik altyazı **varsayılan olarak kapalıdır** ve ayrı bir kütüphane gerektirir:
+
+```bash
+pip install faster-whisper
+python -m clipmaker <link> --subtitles --lang tr
+```
+
+- `--subtitles` vermezseniz veya `faster-whisper` kurulu değilse klip üretilir ama
+  **altyazı eklenmez** (program başında bunu açıkça uyarır).
+- Altyazı, klibin sesinden otomatik yazıya dökülür. **Dikey (9:16) kliplerde** sosyal medya
+  stilinde **büyük, alt-orta** yazı kullanılır (Reels/Shorts/TikTok için okunaklı);
+  yatay kliplere normal boy altyazı gömülür.
+- İlk çalıştırmada whisper modeli (~birkaç yüz MB) indirilir. Daha hızlı/daha doğru için
+  `--whisper-model tiny|base|small|medium` seçebilirsiniz (varsayılan `small`).
+
 ### Çıktı yapısı
 
 ```
@@ -104,9 +136,16 @@ output/kanaladi_9f10b2c3/
 | `-d, --duration` | 45 | klip süresi (saniye) |
 | `--pre` | 0.35 | klibin ne kadarının zirveden *önce* başlayacağı (bağlam için) |
 | `--chat-weight` / `--audio-weight` | 0.6 / 0.4 | sinyal ağırlıkları |
+| `--agreement` | 0.7 | chat+ses aynı anda patlarsa eklenen uzlaşma bonusu |
+| `--chat-lag` | 4 | chat'in olaya göre gecikmesi (sn); klibi öne kaydırır |
 | `--no-chat` / `--no-audio` | — | bir sinyali tamamen kapat |
 | `--quality` | best | klip kesiminde kullanılacak video kalitesi (`best`/`worst`) |
 | `--bucket` | 5 | analiz penceresi (saniye); küçültmek hassasiyeti artırır |
+
+> **İpucu — klipler hâlâ "tam o anı" yakalamıyorsa:** chat tepkisi yavaşsa
+> `--chat-lag 6`, hızlıysa `--chat-lag 2` deneyin. Komik anları daha çok kovalamak için
+> `--agreement 1.0` (yayıncı + chat birlikte patlayan anlara odaklanır). Hassasiyet için
+> `--bucket 3`. Önce `--analyze-only` ile raporu görüp ayar yapmak en hızlısıdır.
 
 ## Sorun giderme
 

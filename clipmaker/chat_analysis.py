@@ -1,9 +1,11 @@
 """Chat tekrarından heyecan sinyali çıkarımı.
 
-Mantık: mesaj yoğunluğu + "hype" kalıpları (kahkaha, şaşkınlık, klip
-çağrıları, emote spam) + farklı kullanıcı sayısı birleşik bir ham skora
-dönüştürülür; sonra dayanıklı z-skoru alınır. Ani yükselişler genellikle
-yayındaki dikkat çekici anlara denk gelir.
+Mantık: yalnızca "yoğun chat" değil, "aniden patlayan chat" dikkat çekici
+anı işaret eder. Mesaj yoğunluğu + hype kalıpları (kahkaha, şaşkınlık,
+klip çağrıları, emote spam) + farklı kullanıcı + tekrar/kopyala-yapıştır
+sinyalleri birleştirilir, yerel ortalamaya göre patlama (burst) eklenir,
+sonra dayanıklı z-skoru alınır. Son olarak chat'in olaya göre gecikmesi
+telafi edilir (sinyal birkaç saniye öne kaydırılır).
 """
 from __future__ import annotations
 
@@ -19,24 +21,28 @@ from clipmaker.kick_api import ChatMessage
 # (kalıp, ağırlık) — Türkçe + evrensel yayın kültürü kalıpları
 HYPE_PATTERNS: list[tuple[re.Pattern, float]] = [
     # kahkaha
-    (re.compile(r"(?:ha){3,}|(?:he){3,}|(?:ah){3,}|(?:js){2,}|(?:sj){2,}|(?:kj){2,}|(?:jsk){2,}|asd(?:as|f){1,}|x[dD]{2,}|\blmaoo*\b|\blo+l\b", re.I), 1.0),
+    (re.compile(r"(?:ha){3,}|(?:he){3,}|(?:ah){3,}|(?:js){2,}|(?:sj){2,}|(?:kj){2,}|(?:jsk){2,}|asd(?:as|f){1,}|x[dD]{2,}|\blmaoo*\b|\blo+l\b|\baaa+\b", re.I), 1.0),
     # emote kültürü
-    (re.compile(r"\b(?:kekw|omegalul|lulw?|icant|kek|pepelaugh|kappa)\b", re.I), 1.2),
+    (re.compile(r"\b(?:kekw|omegalul|lulw?|icant|kek|pepelaugh|kappa|sadge|aware|copium)\b", re.I), 1.2),
     # heyecan (EN)
-    (re.compile(r"\b(?:pog(?:gers|champ)?|lets?\s*go+|insane|holy|no\s*way|nah+|wtf|omg|crazy)\b", re.I), 1.0),
-    # heyecan (TR)
-    (re.compile(r"\b(?:oha+|off+|vay\s*be|yok\s*artık|inanılmaz|inanilmaz|efsane|müthiş|muthis|kral|baba|adamsın|adamsin|helal|bravo|nasıl\s*ya|nasil\s*ya|beyler)\b", re.I), 1.2),
+    (re.compile(r"\b(?:pog(?:gers|champ|u)?|lets?\s*go+|insane|holy|no\s*way|nah+|wtf|omg|crazy|sheesh|actual(?:ly)?|clipped)\b", re.I), 1.0),
+    # heyecan / tepki (TR)
+    (re.compile(r"\b(?:oha+|off+|vay\s*be|yok\s*artık|inanılmaz|inanilmaz|efsane|müthiş|muthis|kral|baba|adamsın|adamsin|helal|bravo|nasıl\s*ya|nasil\s*ya|beyler|rezalet|kepazelik|valla+|vallah|aq|amk|panpa|reis|hocam)\b", re.I), 1.2),
     # klip çağrısı — en güçlü sinyal
-    (re.compile(r"\b(?:clip\s*(?:it|that)?|klip(?:le|lik|leyin|lendi)?|kliple)\b", re.I), 2.0),
-    # tek başına W / L
-    (re.compile(r"^\s*[wW]{1,3}\s*$"), 1.0),
+    (re.compile(r"\b(?:clip\s*(?:it|that)?|klip(?:le|lik|leyin|lendi|leyelim)?|kliple|montaj(?:lık|lik)?)\b", re.I), 2.2),
+    # şaşkınlık/soru patlaması
+    (re.compile(r"\b(?:ne(?:e+|\s*oldu|\s*ya|\s*lan)|naptın|naptin|gördün\s*mü|gordun\s*mu)\b", re.I), 0.9),
+    # tek başına W / L / + (onay/katılım)
+    (re.compile(r"^\s*(?:[wW]{1,3}|\+\d*|o7|F)\s*$"), 1.0),
     # yoğun ünlem/soru
-    (re.compile(r"[?!]{3,}"), 0.6),
+    (re.compile(r"[?!]{3,}"), 0.7),
 ]
 
 # Kick mesajlarında emote'lar [emote:12345:isim] biçiminde gömülü gelir
 EMOTE_RE = re.compile(r"\[emote:\d+:([A-Za-z0-9_]+)\]")
-HYPE_EMOTE_RE = re.compile(r"kekw|lul|omegalul|pog|icant|kek|laugh|hype|fire|w\b", re.I)
+HYPE_EMOTE_RE = re.compile(r"kekw|lul|omegalul|pog|icant|kek|laugh|hype|fire|w\b|clap|cry|skull", re.I)
+URL_RE = re.compile(r"https?://|www\.", re.I)
+WS_RE = re.compile(r"\s+")
 
 
 def message_hype_score(content: str) -> float:
@@ -48,8 +54,10 @@ def message_hype_score(content: str) -> float:
         if pattern.search(content):
             score += weight
     emotes = EMOTE_RE.findall(content)
-    for name in emotes:
-        score += 1.0 if HYPE_EMOTE_RE.search(name) else 0.4
+    # emote spam: ilk emote tam, sonrakiler azalan katkı (tek emote yağmuru şişmesin)
+    for i, name in enumerate(emotes):
+        base = 1.0 if HYPE_EMOTE_RE.search(name) else 0.4
+        score += base * (1.0 if i == 0 else 0.5)
     # BÜYÜK HARF bağırışı
     stripped = EMOTE_RE.sub("", content)
     letters = [c for c in stripped if c.isalpha()]
@@ -60,19 +68,44 @@ def message_hype_score(content: str) -> float:
     return score
 
 
+def is_noise_message(content: str) -> bool:
+    """Yoğunluk sayımından çıkarılacak mesajlar: bot komutları ve saf linkler."""
+    s = (content or "").strip()
+    if not s:
+        return True
+    if s.startswith(("!", "/")):       # bot komutu
+        return True
+    if URL_RE.search(s) and len(s.split()) <= 2:  # yalnızca link
+        return True
+    return False
+
+
+def normalize_text(content: str) -> str:
+    """Tekrar/kopyala-yapıştır tespiti için mesajı sadeleştirir."""
+    s = EMOTE_RE.sub(lambda g: g.group(1).lower(), content or "")
+    return WS_RE.sub(" ", s.strip().lower())
+
+
 @dataclass
 class ChatSignal:
     bucket_s: float
-    counts: np.ndarray            # mesaj sayısı / pencere
+    counts: np.ndarray            # mesaj sayısı / pencere (gürültü filtreli)
     hype: np.ndarray              # hype puanı / pencere
     unique_senders: np.ndarray    # farklı kullanıcı / pencere
-    raw: np.ndarray               # birleşik ham skor
-    z: np.ndarray                 # dayanıklı z-skoru (yumuşatılmış)
+    repeat: np.ndarray            # kopyala-yapıştır / tekrar yoğunluğu / pencere
+    raw: np.ndarray               # birleşik ham skor (+ patlama bileşeni)
+    z: np.ndarray                 # dayanıklı z-skoru (yumuşatılmış, gecikme telafili)
+    lag_s: float = 0.0
     messages: list = field(default_factory=list, repr=False)
 
     def top_messages(self, start_s: float, end_s: float, k: int = 5) -> list[dict]:
-        """Pencere içindeki en dikkat çekici mesajları döndürür (rapor için)."""
-        window = [m for m in self.messages if start_s <= m.offset_s <= end_s]
+        """Pencere içindeki en dikkat çekici mesajları döndürür (rapor için).
+
+        Gecikme telafisi nedeniyle gerçek tepkiler klibin biraz sonrasında
+        olabileceğinden pencereyi sağ tarafa doğru biraz genişletiriz.
+        """
+        lo, hi = start_s, end_s + self.lag_s + self.bucket_s
+        window = [m for m in self.messages if lo <= m.offset_s <= hi]
         window.sort(key=lambda m: message_hype_score(m.content), reverse=True)
         out = []
         for m in window[:k]:
@@ -82,28 +115,56 @@ class ChatSignal:
         return out
 
 
-def analyze_chat(messages: list[ChatMessage], duration_s: float, bucket_s: float = 5.0) -> Optional[ChatSignal]:
-    """Mesaj listesini pencereli sinyale dönüştürür. Mesaj yoksa None."""
+def analyze_chat(
+    messages: list[ChatMessage],
+    duration_s: float,
+    bucket_s: float = 5.0,
+    lag_s: float = 4.0,
+) -> Optional[ChatSignal]:
+    """Mesaj listesini pencereli sinyale dönüştürür. Mesaj yoksa None.
+
+    lag_s: chat'in olaya göre ortalama gecikmesi (yayın gecikmesi + insan
+    tepki süresi + yazma). Sinyal bu kadar saniye öne kaydırılır ki klip,
+    chat tepkisinin değil tepkiyi doğuran *anın* üzerine otursun.
+    """
     if not messages or duration_s <= 0:
         return None
     n = max(1, math.ceil(duration_s / bucket_s))
     counts = np.zeros(n)
     hype = np.zeros(n)
     senders: list[set] = [set() for _ in range(n)]
+    bucket_texts: list[dict] = [dict() for _ in range(n)]  # normalize metin -> adet
 
     for m in messages:
         b = int(m.offset_s // bucket_s)
-        if 0 <= b < n:
+        if not (0 <= b < n):
+            continue
+        if not is_noise_message(m.content):
             counts[b] += 1
-            hype[b] += message_hype_score(m.content)
-            if m.username:
-                senders[b].add(m.username)
+        hype[b] += message_hype_score(m.content)
+        if m.username:
+            senders[b].add(m.username)
+        norm = normalize_text(m.content)
+        if norm:
+            bucket_texts[b][norm] = bucket_texts[b].get(norm, 0) + 1
 
     uniq = np.array([len(s) for s in senders], dtype=float)
-    raw = counts + 1.5 * hype + 0.5 * uniq
+    # tekrar: aynı/benzer mesajın bir pencerede kaç kez fazladan görüldüğü
+    repeat = np.array([
+        sum(c - 1 for c in texts.values() if c > 1) for texts in bucket_texts
+    ], dtype=float)
+
+    base = counts + 1.6 * hype + 0.4 * uniq + 1.2 * repeat
+    # patlama (burst): yerel ortalamanın üzerine çıkan ani sıçrama
+    baseline = rolling_baseline(base, win=max(5, int(round(60.0 / bucket_s))))
+    burst = np.clip(base - baseline, 0.0, None)
+
+    raw = base + 1.3 * burst
     z = robust_z(smooth(raw, 3))
+    z = shift_earlier(z, int(round(lag_s / bucket_s)))
     return ChatSignal(bucket_s=bucket_s, counts=counts, hype=hype,
-                      unique_senders=uniq, raw=raw, z=z, messages=list(messages))
+                      unique_senders=uniq, repeat=repeat, raw=raw, z=z,
+                      lag_s=lag_s, messages=list(messages))
 
 
 def smooth(x: np.ndarray, k: int = 3) -> np.ndarray:
@@ -111,6 +172,26 @@ def smooth(x: np.ndarray, k: int = 3) -> np.ndarray:
         return x.astype(float)
     kernel = np.ones(k) / k
     return np.convolve(x.astype(float), kernel, mode="same")
+
+
+def rolling_baseline(x: np.ndarray, win: int) -> np.ndarray:
+    """Kayan ortalama temel çizgisi (yavaş trafik artışını süzmek için)."""
+    x = x.astype(float)
+    if win <= 1 or len(x) < win:
+        return np.full_like(x, float(np.median(x)) if len(x) else 0.0)
+    pad = win // 2
+    padded = np.pad(x, (pad, pad), mode="edge")
+    kernel = np.ones(win) / win
+    return np.convolve(padded, kernel, mode="valid")[:len(x)]
+
+
+def shift_earlier(arr: np.ndarray, k: int) -> np.ndarray:
+    """Diziyi k pencere öne kaydırır (gelecekteki değerleri geri çeker)."""
+    if k <= 0:
+        return arr
+    out = np.zeros_like(arr)
+    out[:-k] = arr[k:]
+    return out
 
 
 def robust_z(x: np.ndarray) -> np.ndarray:

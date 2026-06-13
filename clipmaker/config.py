@@ -25,6 +25,8 @@ class Settings:
     bucket_s: float = 5.0                    # analiz pencere boyu (saniye)
     chat_weight: float = 0.6
     audio_weight: float = 0.4
+    agreement_weight: float = 0.7            # chat+ses aynı anda patlarsa bonus
+    chat_lag_s: float = 4.0                  # chat'in olaya göre gecikmesi (telafi)
     limit_minutes: Optional[float] = None    # sadece ilk X dakikayı analiz et (test için)
 
     # Çıktılar

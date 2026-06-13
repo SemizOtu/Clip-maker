@@ -43,6 +43,10 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--bucket", type=float, default=5.0, help="analiz penceresi, saniye (varsayılan: 5)")
     g.add_argument("--chat-weight", type=float, default=0.6, help="chat sinyali ağırlığı (varsayılan: 0.6)")
     g.add_argument("--audio-weight", type=float, default=0.4, help="ses sinyali ağırlığı (varsayılan: 0.4)")
+    g.add_argument("--agreement", type=float, default=0.7, metavar="W",
+                   help="chat+ses aynı anda patlarsa eklenen uzlaşma bonusu (varsayılan: 0.7)")
+    g.add_argument("--chat-lag", type=float, default=4.0, metavar="SN",
+                   help="chat'in olaya göre gecikmesi, saniye; klibi öne kaydırır (varsayılan: 4)")
     g.add_argument("--limit-minutes", type=float, default=None, metavar="DK",
                    help="yalnızca ilk X dakikayı analiz et (hızlı deneme için)")
 
@@ -92,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
         bucket_s=args.bucket,
         chat_weight=args.chat_weight,
         audio_weight=args.audio_weight,
+        agreement_weight=args.agreement,
+        chat_lag_s=args.chat_lag,
         limit_minutes=args.limit_minutes,
         out_dir=args.out,
         horizontal=not args.no_horizontal,

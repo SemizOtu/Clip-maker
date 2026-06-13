@@ -1,6 +1,10 @@
 """Opsiyonel otomatik altyazı (faster-whisper gerektirir).
 
 Kurulum: pip install faster-whisper
+
+Altyazı, klibin sesinden otomatik yazıya dökülür ve videonun üzerine
+gömülür. Dikey (9:16) kliplerde sosyal medya stilinde büyük, alt-orta
+yazı kullanılır.
 """
 from __future__ import annotations
 
@@ -8,6 +12,22 @@ from pathlib import Path
 from typing import Optional
 
 from clipmaker.media import run_ffmpeg
+
+# Yatay klipler: alta yakın, orta boy
+HORIZONTAL_STYLE = "FontSize=18,Bold=1,Outline=2,Shadow=1,Alignment=2,MarginV=40"
+# Dikey (9:16) klipler: büyük, alttan yukarıda, kalın dış hat (Reels/Shorts/TikTok)
+VERTICAL_STYLE = (
+    "FontSize=22,Bold=1,Outline=4,Shadow=1,Alignment=2,MarginV=300,"
+    "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000"
+)
+
+
+def whisper_available() -> bool:
+    try:
+        import faster_whisper  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 
 def _fmt_srt_time(t: float) -> str:
@@ -28,7 +48,6 @@ def generate_srt(
     try:
         from faster_whisper import WhisperModel  # type: ignore
     except ImportError:
-        print("  ! Altyazı atlandı: 'pip install faster-whisper' ile kurabilirsiniz.")
         return None
 
     model = WhisperModel(model_size, device="auto", compute_type="int8")
@@ -47,17 +66,26 @@ def generate_srt(
     return srt_path
 
 
-def burn_subtitles(clip_path: Path, srt_path: Path, out_path: Path) -> Path:
-    """SRT altyazıyı klibin üzerine gömer."""
+def burn_subtitles(
+    clip_path: Path,
+    srt_path: Path,
+    out_path: Path,
+    style: Optional[str] = None,
+    audio_codec: str = "copy",
+) -> Path:
+    """SRT altyazıyı klibin üzerine gömer.
+
+    style: libass force_style dizgesi. None ise yatay stil kullanılır.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # subtitles filtresi yol içindeki ':' ve '\' karakterlerine duyarlıdır
     srt_escaped = str(srt_path).replace("\\", "/").replace(":", "\\:")
-    style = "FontSize=20,Bold=1,Outline=2,Shadow=1,MarginV=40"
+    style = style or HORIZONTAL_STYLE
     run_ffmpeg([
         "-y", "-i", str(clip_path),
         "-vf", f"subtitles='{srt_escaped}':force_style='{style}'",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-        "-c:a", "copy", "-movflags", "+faststart",
+        "-c:a", audio_codec, "-movflags", "+faststart",
         str(out_path),
     ])
     return out_path
