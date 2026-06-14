@@ -21,6 +21,7 @@ from typing import Callable, Iterator, Optional
 from curl_cffi import requests as cffi_requests
 
 BASE_URL = "https://kick.com"
+WEB_BASE_URL = "https://web.kick.com"   # VOD chat tekrarı bu alt alandan gelir
 IMPERSONATE_TARGETS = ("chrome", "safari", "firefox", "edge")
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -180,6 +181,16 @@ class KickClient:
     def get_text(self, url: str) -> str:
         return self._request(url).text
 
+    def raw_get(self, url: str, params: dict | None = None) -> tuple[int, str]:
+        """Tanı için: durum kodu + ham gövde döndürür (hata fırlatmaz)."""
+        if self._session is None:
+            self._session = self._new_session()
+        try:
+            r = self._session.get(url, params=params, headers={"Accept": "application/json"})
+            return r.status_code, r.text
+        except Exception as e:
+            return -1, f"İstek hatası: {e}"
+
     # ---- yüksek seviye ----
 
     def get_channel(self, slug: str) -> dict:
@@ -260,9 +271,9 @@ class KickClient:
     ) -> list[ChatMessage]:
         """VOD chat tekrarını baştan sona tarar.
 
-        Uç nokta, verilen start_time'dan itibaren bir sayfa mesaj döndürür;
-        imleci son mesajın zamanına taşıyarak ilerleriz. Boş aralıklarda
-        empty_step_s kadar atlanır.
+        web.kick.com/api/v1/chat/{id}/history?start_time=ISO uç noktası, verilen
+        start_time'dan itibaren bir sayfa mesaj döndürür; imleci son mesajın
+        zamanına taşıyarak ilerleriz. Boş aralıklarda empty_step_s kadar atlanır.
         """
         end_at = started_at + timedelta(seconds=duration_s)
         cursor = started_at
@@ -272,8 +283,8 @@ class KickClient:
 
         while cursor < end_at:
             data = self.get_json(
-                f"{BASE_URL}/api/v2/channels/{channel_id}/messages",
-                params={"start_time": cursor.strftime("%Y-%m-%d %H:%M:%S")},
+                f"{WEB_BASE_URL}/api/v1/chat/{channel_id}/history",
+                params={"start_time": cursor.strftime("%Y-%m-%dT%H:%M:%S.000Z")},
             )
             msgs = self._extract_messages(data)
             requests_made += 1

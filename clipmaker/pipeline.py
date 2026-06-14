@@ -452,6 +452,73 @@ def _burn(clip_path: Path, srt: Path, out_path: Path, vertical: bool) -> Optiona
         return None
 
 
+def diagnose_chat(url: str) -> int:
+    """--debug-chat: VOD bilgisini ve chat endpoint'inin HAM yanıtını gösterir.
+
+    Chat'in neden boş geldiğini bulmak için kullanılır.
+    """
+    from datetime import timedelta
+
+    from clipmaker.kick_api import WEB_BASE_URL, parse_kick_time
+
+    client = KickClient()
+    log(f"VOD çözülüyor: {url}")
+    try:
+        vod = client.resolve_vod(url)
+    except KickAPIError as e:
+        log(f"HATA: {e}")
+        return 1
+
+    log(f"  channel_slug : {vod.channel_slug}")
+    log(f"  channel_id   : {vod.channel_id}")
+    log(f"  started_at   : {vod.started_at}")
+    log(f"  duration_s   : {vod.duration_s}")
+
+    # Kanal bilgisinden chatroom id de alıp birlikte gösterelim
+    chatroom_id = None
+    try:
+        ch = client.get_channel(vod.channel_slug)
+        chatroom_id = (ch.get("chatroom") or {}).get("id")
+        log(f"  chatroom_id  : {chatroom_id}")
+    except KickAPIError:
+        pass
+
+    if vod.channel_id is None or vod.started_at is None:
+        log("HATA: channel_id ya da started_at yok; chat çekilemez.")
+        return 1
+
+    # Yayının başından ve 10 dk sonrasından birer örnek dene (baş kısımda chat olmayabilir)
+    probes = [vod.started_at, vod.started_at + timedelta(minutes=10)]
+    id_candidates = [("channel_id", vod.channel_id)]
+    if chatroom_id and chatroom_id != vod.channel_id:
+        id_candidates.append(("chatroom_id", chatroom_id))
+
+    for label, cid in id_candidates:
+        for t in probes:
+            ts = t.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            u = f"{WEB_BASE_URL}/api/v1/chat/{cid}/history"
+            status, body = client.raw_get(u, params={"start_time": ts})
+            log("")
+            log(f"--- {label}={cid}  start_time={ts} ---")
+            log(f"  {u}?start_time={ts}")
+            log(f"  HTTP {status}")
+            try:
+                data = json.loads(body)
+                msgs = client._extract_messages(data)
+                log(f"  üst düzey anahtarlar: {list(data.keys()) if isinstance(data, dict) else type(data).__name__}")
+                log(f"  bulunan mesaj sayısı: {len(msgs)}")
+                if msgs:
+                    m = msgs[0]
+                    sender = (m.get('sender') or {}).get('username')
+                    log(f"  ilk mesaj: created_at={m.get('created_at')} sender={sender} "
+                        f"content={str(m.get('content'))[:60]}")
+            except json.JSONDecodeError:
+                log(f"  (JSON değil) gövde: {body[:300]}")
+    log("")
+    log("Yukarıda 'bulunan mesaj sayısı' > 0 olan bir satır varsa chat çalışıyor demektir.")
+    return 0
+
+
 def list_channel_vods(url: str) -> int:
     """--list: kanalın VOD'larını numaralı tablo halinde yazdırır."""
     from clipmaker.kick_api import parse_vod_url

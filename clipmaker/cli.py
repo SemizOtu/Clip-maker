@@ -83,6 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     g = p.add_argument_group("kaynak seçenekleri")
     g.add_argument("--list", action="store_true", help="kanalın VOD'larını listele ve çık")
+    g.add_argument("--debug-chat", action="store_true",
+                   help="chat endpoint'inin ham yanıtını gösterip çık (tanı için)")
     g.add_argument("--pick", type=int, default=0, metavar="N",
                    help="kanal bağlantısında kaçıncı VOD (0 = en yeni)")
     g.add_argument("--m3u8", default=None, metavar="URL",
@@ -93,10 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    from clipmaker.pipeline import list_channel_vods, run_pipeline
+    from clipmaker.pipeline import diagnose_chat, list_channel_vods, run_pipeline
 
     if args.list:
         return list_channel_vods(args.url)
+    if args.debug_chat:
+        return diagnose_chat(args.url)
 
     settings = Settings(
         url=args.url,
