@@ -4,8 +4,8 @@ import unittest
 import numpy as np
 
 from clipmaker.audio_analysis import AudioSignal
-from clipmaker.chat_analysis import (ChatSignal, analyze_chat, is_noise_message,
-                                     message_hype_score, robust_z,
+from clipmaker.chat_analysis import (ChatSignal, analyze_chat, is_bot_or_noise,
+                                     is_noise_message, message_hype_score, robust_z,
                                      rolling_baseline, shift_earlier)
 from clipmaker.highlights import combine_signals, fmt_ts, pick_highlights
 from clipmaker.kick_api import ChatMessage
@@ -145,9 +145,31 @@ class TestNoiseFilter(unittest.TestCase):
         self.assertTrue(is_noise_message("https://example.com"))
         self.assertTrue(is_noise_message("   "))
 
+    def test_system_messages_are_noise(self):
+        self.assertTrue(is_noise_message("Thanks for the follow @emir"))
+        self.assertTrue(is_noise_message("@semizotucan has accepted the duel against @joe"))
+        self.assertTrue(is_noise_message("ahmet has subscribed for 3 months"))
+
     def test_real_messages_not_noise(self):
         self.assertFalse(is_noise_message("OHA NASIL YA"))
         self.assertFalse(is_noise_message("hahaha"))
+
+    def test_bot_usernames_filtered(self):
+        self.assertTrue(is_bot_or_noise("Botrix", "normal mesaj"))
+        self.assertTrue(is_bot_or_noise("ali", "!commands"))
+        self.assertFalse(is_bot_or_noise("ali", "hahaha çok komik"))
+
+    def test_bots_excluded_from_signal(self):
+        # Bot mesajları yoğunluk patlaması yaratmamalı
+        msgs = [ChatMessage(offset_s=300 + i * 0.2, username="Botrix",
+                            content="Thanks for the follow @user") for i in range(50)]
+        msgs += [ChatMessage(offset_s=t, username=f"u{int(t) % 3}", content="selam")
+                 for t in range(0, 600, 30)]
+        sig = analyze_chat(msgs, 600.0, 5.0, lag_s=0.0)
+        # 50 bot mesajı kovayı şişirmemeli (en fazla 1 meşru 'selam' kalır)
+        self.assertLessEqual(sig.counts[60], 1.0)
+        # bot patlaması zirve OLMAMALI (sinyal düz kalmalı)
+        self.assertLess(float(np.max(sig.z)), 3.0)
 
 
 class TestSignalHelpers(unittest.TestCase):

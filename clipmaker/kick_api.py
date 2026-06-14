@@ -267,19 +267,21 @@ class KickClient:
         started_at: datetime,
         duration_s: float,
         progress: Optional[Callable[[float, int], None]] = None,
-        empty_step_s: float = 120.0,
+        empty_step_s: float = 5.0,
     ) -> list[ChatMessage]:
         """VOD chat tekrarını baştan sona tarar.
 
         web.kick.com/api/v1/chat/{id}/history?start_time=ISO uç noktası, verilen
-        start_time'dan itibaren bir sayfa mesaj döndürür; imleci son mesajın
-        zamanına taşıyarak ilerleriz. Boş aralıklarda empty_step_s kadar atlanır.
+        start_time'dan itibaren ~birkaç saniyelik bir pencere döndürür. Sohbet
+        varken son mesajın zamanına atlarız (sık tarama); sessiz aralıklarda
+        adım büyür (boş geçişlerde hızla ilerle, mesajları kaçırma).
         """
         end_at = started_at + timedelta(seconds=duration_s)
         cursor = started_at
         seen: set = set()
         out: list[ChatMessage] = []
         requests_made = 0
+        empty_run = 0
 
         while cursor < end_at:
             data = self.get_json(
@@ -311,8 +313,13 @@ class KickClient:
                 ))
 
             if newest is None or newest <= cursor:
-                cursor += timedelta(seconds=empty_step_s)
+                # Boş pencere: sessizlik sürdükçe adımı büyüt (5,10,...,60 sn)
+                empty_run += 1
+                step = min(empty_step_s * empty_run, 60.0)
+                cursor += timedelta(seconds=step)
             else:
+                # Mesaj bulundu: son mesajın hemen sonrasına geç, sık taramaya dön
+                empty_run = 0
                 cursor = newest + timedelta(seconds=1)
 
             if progress:

@@ -39,9 +39,13 @@ SYSTEM_PROMPT = (
     "öne çıkmış anlar (selamlaşma, sponsor, boş muhabbet, tek kelimelik tepki).\n\n"
     "Yalnızca yüksek sesli ya da yoğun chat olması yüksek puan demek DEĞİLDİR; "
     "içerik anlamlı ve ilgi çekici olmalı. Klibin tek başına, bağlam olmadan "
-    "izleneceğini unutma. Her aday için kısa ve dürüst (clickbait olmayan) bir "
-    "Türkçe başlık ve bir kategori üret: komik | çarpıcı | dramatik | yetenek | "
-    "tepki | bilgi | diğer."
+    "izleneceğini unutma.\n\n"
+    "ÖNEMLİ: Takip/abone/düello/raid/bağış bot bildirimleri ('takip için teşekkürler', "
+    "'düelloyu kabul etti', 'has subscribed' vb.), sponsor/reklam ve sadece selamlaşma "
+    "anları KLİP DEĞİLDİR — bunlara düşük puan ver. Yüksek puanı gerçek espri, "
+    "beklenmedik olay, güçlü tepki ya da clutch anlara sakla.\n\n"
+    "Her aday için kısa ve dürüst (clickbait olmayan) bir Türkçe başlık ve bir "
+    "kategori üret: komik | çarpıcı | dramatik | yetenek | tepki | bilgi | diğer."
 )
 
 # Yapılandırılmış çıktı şeması (Claude output_config.format için)

@@ -44,6 +44,18 @@ HYPE_EMOTE_RE = re.compile(r"kekw|lul|omegalul|pog|icant|kek|laugh|hype|fire|w\b
 URL_RE = re.compile(r"https?://|www\.", re.I)
 WS_RE = re.compile(r"\s+")
 
+# Bot/sistem bildirimleri (insan tepkisi değil; sinyali şişirir, klip değildir)
+BOT_USERNAMES = {"botrix", "kickbot", "nightbot", "streamelements", "streamlabs",
+                 "moobot", "wizebot", "fossabot", "kick"}
+SYSTEM_CONTENT_RE = re.compile(
+    r"thanks?\s+for\s+the\s+follow|is\s+now\s+live|has\s+gifted|gifted\s+\d+|"
+    r"\bhas\s+subscribed\b|just\s+subscribed|\bhas\s+resubscribed\b|"
+    r"has\s+accepted\s+the\s+duel|has\s+declined\s+the\s+duel|"
+    r"\bhas\s+(?:won|lost|challenged|redeemed)\b|is\s+hosting|raiding\s+with|"
+    r"welcome\s+to\s+the\s+stream|açıldı\s*!?\s*$|takip\s+ettiği\s+için\s+teşekkür",
+    re.I,
+)
+
 
 def message_hype_score(content: str) -> float:
     """Tek bir mesajın 'hype' katkısını hesaplar."""
@@ -69,7 +81,7 @@ def message_hype_score(content: str) -> float:
 
 
 def is_noise_message(content: str) -> bool:
-    """Yoğunluk sayımından çıkarılacak mesajlar: bot komutları ve saf linkler."""
+    """Sinyale girmemesi gereken mesajlar: bot komutları, linkler, sistem bildirimleri."""
     s = (content or "").strip()
     if not s:
         return True
@@ -77,7 +89,16 @@ def is_noise_message(content: str) -> bool:
         return True
     if URL_RE.search(s) and len(s.split()) <= 2:  # yalnızca link
         return True
+    if SYSTEM_CONTENT_RE.search(s):    # takip/abone/düello/raid bildirimi
+        return True
     return False
+
+
+def is_bot_or_noise(username: str, content: str) -> bool:
+    """Bot kullanıcısı ya da gürültü mesajı mı? (sinyale ve jüriye girmemeli)"""
+    if (username or "").strip().lower() in BOT_USERNAMES:
+        return True
+    return is_noise_message(content)
 
 
 def normalize_text(content: str) -> str:
@@ -105,7 +126,8 @@ class ChatSignal:
         olabileceğinden pencereyi sağ tarafa doğru biraz genişletiriz.
         """
         lo, hi = start_s, end_s + self.lag_s + self.bucket_s
-        window = [m for m in self.messages if lo <= m.offset_s <= hi]
+        window = [m for m in self.messages
+                  if lo <= m.offset_s <= hi and not is_bot_or_noise(m.username, m.content)]
         window.sort(key=lambda m: message_hype_score(m.content), reverse=True)
         out = []
         for m in window[:k]:
@@ -139,8 +161,9 @@ def analyze_chat(
         b = int(m.offset_s // bucket_s)
         if not (0 <= b < n):
             continue
-        if not is_noise_message(m.content):
-            counts[b] += 1
+        if is_bot_or_noise(m.username, m.content):
+            continue  # bot/sistem/komut/link -> sinyale hiç girmesin
+        counts[b] += 1
         hype[b] += message_hype_score(m.content)
         if m.username:
             senders[b].add(m.username)
