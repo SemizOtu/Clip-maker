@@ -108,6 +108,23 @@ class TestMasterPlaylist(unittest.TestCase):
         self.assertEqual(pick_variant(pl, "best", self.base), self.base)
 
 
+class TestEscapeFontPath(unittest.TestCase):
+    def test_windows_drive_colon_escaped(self):
+        from clipmaker.media import escape_font_path
+        self.assertEqual(escape_font_path("C:/Windows/Fonts/arialbd.ttf"),
+                         "C\\:/Windows/Fonts/arialbd.ttf")
+
+    def test_backslashes_normalized(self):
+        from clipmaker.media import escape_font_path
+        self.assertEqual(escape_font_path(r"C:\Windows\Fonts\arialbd.ttf"),
+                         "C\\:/Windows/Fonts/arialbd.ttf")
+
+    def test_unix_path_unchanged(self):
+        from clipmaker.media import escape_font_path
+        self.assertEqual(escape_font_path("/usr/share/fonts/x.ttf"),
+                         "/usr/share/fonts/x.ttf")
+
+
 class TestSliceWav(unittest.TestCase):
     """Yerel WAV diliminin (transcription için) ağ/ffmpeg olmadan çalıştığını doğrula."""
 

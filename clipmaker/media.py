@@ -138,6 +138,15 @@ def _drawtext_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\\\'").replace("%", "\\%")
 
 
+def escape_font_path(path: str) -> str:
+    """drawtext fontfile yolu için: ters bölü -> '/', sürücü iki noktası kaçışlı.
+
+    Windows'ta 'C:/Windows/Fonts/arialbd.ttf' filtre içinde 'C' ve geri kalanı
+    ayrı seçenekler sanılır; 'C\\:/Windows/...' biçimi gerekir.
+    """
+    return path.replace("\\", "/").replace(":", "\\:")
+
+
 def find_font() -> Optional[str]:
     candidates = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -158,27 +167,39 @@ def make_vertical(clip_path: Path, out_path: Path, title: Optional[str] = None) 
     TikTok / Instagram Reels / YouTube Shorts için hazır çıktı üretir.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    filters = (
+    base = (
         "[0:v]split=2[bg][fg];"
         "[bg]scale=1080:1920:force_original_aspect_ratio=increase,"
         "crop=1080:1920,gblur=sigma=25,eq=brightness=-0.08[bgb];"
         "[fg]scale=1080:-2[fgs];"
         "[bgb][fgs]overlay=(W-w)/2:(H-h)/2"
     )
+
+    def _run(filters: str) -> None:
+        run_ffmpeg([
+            "-y", "-i", str(clip_path),
+            "-filter_complex", filters,
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "copy", "-movflags", "+faststart",
+            str(out_path),
+        ])
+
     font = find_font()
     if title and font:
-        filters += (
-            f",drawtext=fontfile={font}:text='{_drawtext_escape(title)}'"
+        # Windows'ta font yolundaki 'C:' iki noktası filtre ayıracı sanılır;
+        # ters bölüleri '/' yapıp iki noktayı kaçışlamak gerekir.
+        font_arg = escape_font_path(font)
+        drawtext = (
+            f",drawtext=fontfile={font_arg}:text='{_drawtext_escape(title)}'"
             ":fontsize=58:fontcolor=white:borderw=4:bordercolor=black@0.7"
             ":x=(w-text_w)/2:y=150"
         )
-    run_ffmpeg([
-        "-y", "-i", str(clip_path),
-        "-filter_complex", filters,
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-        "-c:a", "copy", "-movflags", "+faststart",
-        str(out_path),
-    ])
+        try:
+            _run(base + drawtext)
+            return out_path
+        except MediaError:
+            pass  # başlık bindirme başarısız -> başlıksız üret (klip kaybolmasın)
+    _run(base)
     return out_path
 
 

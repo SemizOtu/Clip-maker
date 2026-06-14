@@ -407,8 +407,9 @@ def _produce_clips(
             # Dikey 9:16 sürüm — altyazı burada büyük, alt-orta stille gömülür
             if settings.vertical:
                 vertical_path = workdir / "clips" / "vertical" / f"{stem}_dikey.mp4"
-                overlay_title = settings.title if settings.title is not None else (h.title or None)
-                make_vertical(raw_h, vertical_path, title=overlay_title)
+                # Yapay zeka başlığı videoya basılmaz (uzun/garip olabilir); raporda
+                # "önerilen başlık" olarak verilir. Yalnızca kullanıcı --title verirse bindir.
+                make_vertical(raw_h, vertical_path, title=settings.title)
                 if srt is not None:
                     subbed = _burn(vertical_path, srt,
                                    workdir / "clips" / "vertical" / f"{stem}_dikey_altyazili.mp4",

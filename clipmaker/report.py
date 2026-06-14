@@ -68,7 +68,14 @@ def write_report(
                 f"| {('%.0f' % h.ai_score) if h.ai_score is not None else '—'} "
                 f"| {h.category or '—'} | {title} | {h.score:.2f} | {h.chat_z:.1f} | {h.audio_z:.1f} |"
             )
-        lines += ["", "## Klip detayları", ""]
+        lines += [
+            "",
+            "> **Başlık**lar paylaşım için önerilen metinlerdir (videoya basılmaz); "
+            "klibi atarken açıklama/başlık olarak kullanabilirsiniz.",
+            "",
+            "## Klip detayları",
+            "",
+        ]
         for h in highlights:
             lines.append(f"### {h.rank}. {h.title or fmt_ts(h.start_s)}  "
                          f"(AI {('%.0f' % h.ai_score) if h.ai_score is not None else '—'}/100, {h.category or '—'})")
