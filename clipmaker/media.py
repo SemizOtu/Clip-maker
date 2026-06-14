@@ -36,10 +36,11 @@ def http_input_args(source: str) -> list[str]:
     ]
 
 
-def run_ffmpeg(args: list[str], tool: str = "ffmpeg", timeout: Optional[float] = None) -> str:
+def run_ffmpeg(args: list[str], tool: str = "ffmpeg", timeout: Optional[float] = None,
+               cwd: Optional[str] = None) -> str:
     cmd = [tool, "-hide_banner", "-loglevel", "error"] + args
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
     except subprocess.TimeoutExpired:
         raise MediaError(
             f"{tool} {timeout:.0f} sn içinde yanıt vermedi (muhtemelen uzaktaki "
@@ -115,21 +116,45 @@ def pick_analysis_source(playlist: dict, master_url: str) -> str:
 
 # ---- klip üretimi ----
 
-def cut_clip(source: str, start_s: float, duration_s: float, out_path: Path) -> Path:
+def cut_clip(source: str, start_s: float, duration_s: float, out_path: Path,
+             normalize_audio: bool = True) -> Path:
     """Kaynaktan (m3u8 ya da yerel dosya) paylaşıma hazır MP4 keser.
 
     -ss'in -i'den önce gelmesi HLS'te yalnızca gerekli segmentlerin
     indirilmesini sağlar. Anahtar kare hizası için yeniden kodlanır.
+    normalize_audio: sosyal medya için ses yüksekliğini standartlaştırır
+    (loudnorm -16 LUFS) — klipler ne çok kısık ne çok yüksek olsun.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_args = ["-c:a", "aac", "-b:a", "160k"]
+    if normalize_audio:
+        audio_args = ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"] + audio_args
     run_ffmpeg(
         ["-y"]
         + http_input_args(source)
         + ["-ss", f"{max(0.0, start_s):.3f}", "-i", source, "-t", f"{duration_s:.3f}",
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-           "-c:a", "aac", "-b:a", "160k",
-           "-movflags", "+faststart", "-avoid_negative_ts", "make_zero",
+           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+        + audio_args
+        + ["-movflags", "+faststart", "-avoid_negative_ts", "make_zero",
            str(out_path)]
+    )
+    return out_path
+
+
+def burn_ass(clip_path: Path, ass_path: Path, out_path: Path) -> Path:
+    """ASS (karaoke) altyazıyı videoya gömer.
+
+    Windows'ta filtre yolundaki ':' sorununu aşmak için ffmpeg, ASS dosyasının
+    bulunduğu klasörde (cwd) çalıştırılır ve filtreye yalnızca dosya adı verilir.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    run_ffmpeg(
+        ["-y", "-i", str(clip_path.resolve()),
+         "-vf", f"ass={ass_path.name}",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+         "-c:a", "copy", "-movflags", "+faststart",
+         str(out_path.resolve())],
+        cwd=str(ass_path.parent.resolve()),
     )
     return out_path
 

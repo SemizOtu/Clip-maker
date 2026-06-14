@@ -33,12 +33,12 @@ def run_pipeline(settings: Settings) -> int:
         log(f"HATA: {e}")
         return 1
 
-    if settings.subtitles:
-        from clipmaker.subtitles import whisper_available
-        if not whisper_available():
-            log("  ! UYARI: --subtitles istendi ama 'faster-whisper' kurulu değil; "
-                "altyazı eklenmeyecek.")
-            log("    Kurmak için: pip install faster-whisper")
+    if settings.captions and not settings.analyze_only:
+        from clipmaker.captions import captions_available
+        if not captions_available():
+            log("  ! UYARI: paylaşıma hazır kliplerin kelime kelime altyazısı için "
+                "'faster-whisper' gerekiyor ama kurulu değil; klipler altyazısız üretilecek.")
+            log("    Kurmak için: pip install faster-whisper   (kapatmak için: --no-captions)")
 
     client = KickClient()
 
@@ -382,74 +382,63 @@ def _produce_clips(
     source: str, vod: VodInfo, highlights: list[Highlight],
     workdir: Path, settings: Settings,
 ) -> dict[int, dict]:
+    from clipmaker.captions import captions_available, transcribe_words, write_ass
+    from clipmaker.media import burn_ass
+
     clip_files: dict[int, dict] = {}
+    cap_on = settings.captions and captions_available()
+    if settings.captions and not captions_available():
+        log("  ! Karaoke altyazı atlandı: faster-whisper kurulu değil "
+            "(pip install faster-whisper).")
+
     for h in highlights:
         files: dict[str, str] = {}
         stem = f"clip_{h.rank:02d}_{fmt_ts(h.start_s).replace(':', '-')}"
         try:
+            # 1) Yatay klibi kes (ses normalizasyonu dahil)
             raw_h = workdir / "clips" / f"{stem}.mp4"
-            cut_clip(source, h.start_s, h.end_s - h.start_s, raw_h)
+            cut_clip(source, h.start_s, h.end_s - h.start_s, raw_h,
+                     normalize_audio=settings.normalize_audio)
             log(f"  Klip {h.rank}: kesildi ({fmt_ts(h.start_s)}–{fmt_ts(h.end_s)})")
-
-            # Altyazıyı bir kez üret; hem yatay hem dikeyde kullan
-            srt = _make_srt(raw_h, workdir, stem, settings) if settings.subtitles else None
-
-            # Yatay sürüm (istenirse altyazı gömülü)
-            horizontal_final = raw_h
             if settings.horizontal:
-                if srt is not None:
-                    horizontal_final = _burn(raw_h, srt, workdir / "clips" / f"{stem}_altyazili.mp4",
-                                             vertical=False) or raw_h
-                    files["yatay (altyazılı)" if horizontal_final != raw_h else "yatay"] = str(horizontal_final)
-                else:
-                    files["yatay"] = str(raw_h)
+                files["yatay"] = str(raw_h)
 
-            # Dikey 9:16 sürüm — altyazı burada büyük, alt-orta stille gömülür
+            # 2) Kelime-zamanlı altyazı (yalnızca FINAL klipler, yüksek kaliteli sesten)
+            ass_path = None
+            if cap_on:
+                words = transcribe_words(raw_h, settings.language, settings.caption_model)
+                ass_path = write_ass(words, workdir / "clips" / "vertical" / f"{stem}.ass")
+                if ass_path is None:
+                    log(f"  Klip {h.rank}: konuşma bulunamadı, altyazısız.")
+
+            # 3) Dikey 9:16 sürüm + karaoke altyazı (paylaşıma hazır)
             if settings.vertical:
-                vertical_path = workdir / "clips" / "vertical" / f"{stem}_dikey.mp4"
-                # Yapay zeka başlığı videoya basılmaz (uzun/garip olabilir); raporda
-                # "önerilen başlık" olarak verilir. Yalnızca kullanıcı --title verirse bindir.
-                make_vertical(raw_h, vertical_path, title=settings.title)
-                if srt is not None:
-                    subbed = _burn(vertical_path, srt,
-                                   workdir / "clips" / "vertical" / f"{stem}_dikey_altyazili.mp4",
-                                   vertical=True)
-                    if subbed is not None:
-                        vertical_path = subbed
-                        files["dikey (altyazılı)"] = str(vertical_path)
-                    else:
-                        files["dikey"] = str(vertical_path)
+                vtmp = workdir / "clips" / "vertical" / f"{stem}_dikey_ham.mp4"
+                make_vertical(raw_h, vtmp, title=settings.title)
+                if ass_path is not None:
+                    vfinal = workdir / "clips" / "vertical" / f"{stem}_dikey.mp4"
+                    try:
+                        burn_ass(vtmp, ass_path, vfinal)
+                        files["dikey (altyazılı)"] = str(vfinal)
+                        vtmp.unlink(missing_ok=True)  # altyazısız ara dosyayı sil
+                        log(f"  Klip {h.rank}: dikey (9:16) + karaoke altyazı hazır")
+                    except MediaError as e:
+                        log(f"  ! Altyazı gömülemedi: {e}")
+                        files["dikey"] = str(vtmp)
                 else:
-                    files["dikey"] = str(vertical_path)
-                log(f"  Klip {h.rank}: dikey (9:16) versiyon hazır"
-                    + (" + altyazı" if srt is not None else ""))
+                    final = workdir / "clips" / "vertical" / f"{stem}_dikey.mp4"
+                    vtmp.rename(final)
+                    files["dikey"] = str(final)
+                    log(f"  Klip {h.rank}: dikey (9:16) versiyon hazır")
 
+            # 4) Kapak görseli
             thumb = workdir / "thumbnails" / f"{stem}.jpg"
-            make_thumbnail(horizontal_final, thumb, at_s=min(2.0, (h.end_s - h.start_s) / 2))
+            make_thumbnail(raw_h, thumb, at_s=min(2.0, (h.end_s - h.start_s) / 2))
             files["kapak"] = str(thumb)
         except MediaError as e:
             log(f"  ! Klip {h.rank} üretilemedi: {e}")
         clip_files[h.rank] = files
     return clip_files
-
-
-def _make_srt(clip_path: Path, workdir: Path, stem: str, settings: Settings) -> Optional[Path]:
-    from clipmaker.subtitles import generate_srt
-    srt = generate_srt(clip_path, workdir / "subtitles" / f"{stem}.srt",
-                       language=settings.language, model_size=settings.whisper_model)
-    if srt is None:
-        log("  ! Altyazı üretilemedi (faster-whisper kurulu değil ya da konuşma yok).")
-    return srt
-
-
-def _burn(clip_path: Path, srt: Path, out_path: Path, vertical: bool) -> Optional[Path]:
-    from clipmaker.subtitles import VERTICAL_STYLE, burn_subtitles
-    try:
-        return burn_subtitles(clip_path, srt, out_path,
-                              style=VERTICAL_STYLE if vertical else None)
-    except MediaError as e:
-        log(f"  ! Altyazı gömülemedi: {e}")
-        return None
 
 
 def diagnose_chat(url: str) -> int:

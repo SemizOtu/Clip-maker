@@ -106,6 +106,35 @@ class TestEndToEndLocal(unittest.TestCase):
         self.assertTrue(v_out.exists() and v_out.stat().st_size > 1000)
         self.assertAlmostEqual(ffprobe_duration(str(v_out)), 10.0, delta=1.5)
 
+    def test_05_karaoke_caption_burn(self):
+        """ASS karaoke altyazı gömme (libass) yolunu, whisper olmadan doğrula."""
+        from clipmaker.captions import write_ass
+        from clipmaker.media import burn_ass, cut_clip, make_vertical
+
+        clip = self.tmp / "clips" / "cap_src.mp4"
+        cut_clip(str(self.video), start_s=0.0, duration_s=10.0, out_path=clip,
+                 normalize_audio=True)  # loudnorm yolu da test edilir
+        self.assertTrue(clip.exists())
+
+        words = [{"word": w, "start": s, "end": e} for (w, s, e) in [
+            ("Merhaba", 0.2, 0.8), ("dünya", 0.9, 1.4), ("bu", 1.5, 1.8),
+            ("bir", 1.9, 2.2), ("karaoke", 2.3, 3.0), ("testi", 3.1, 3.8),
+        ]]
+        ass = write_ass(words, self.tmp / "clips" / "vertical" / "cap.ass")
+        self.assertIsNotNone(ass)
+
+        vert = self.tmp / "clips" / "vertical" / "cap_v.mp4"
+        make_vertical(clip, vert)
+        out = self.tmp / "clips" / "vertical" / "cap_v_sub.mp4"
+        burn_ass(vert, ass, out)
+        self.assertTrue(out.exists() and out.stat().st_size > 1000)
+        # 9:16 korunmalı
+        res = subprocess.run([
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-of", "csv=p=0", str(out),
+        ], capture_output=True, text=True, check=True).stdout.strip()
+        self.assertEqual(res.split(","), ["1080", "1920"])
+
 
 if __name__ == "__main__":
     unittest.main()

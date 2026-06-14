@@ -44,7 +44,12 @@ class Settings:
     analyze_only: bool = False               # klip kesme, sadece analiz raporu üret
     title: Optional[str] = None              # dikey klibe yazı bindir (boşsa yazı yok)
 
-    # Altyazı (opsiyonel, faster-whisper gerektirir)
-    subtitles: bool = False
+    # Altyazı / karaoke caption (paylaşıma hazır dikey klipler için, varsayılan AÇIK)
+    captions: bool = True                    # kelime kelime hareketli altyazı göm
+    caption_model: str = "base"              # caption transcription modeli (tiny/base/small)
     language: str = "tr"
+    normalize_audio: bool = True             # ses yüksekliğini standartlaştır (loudnorm)
+
+    # Geriye dönük uyumluluk (eski bayraklar)
+    subtitles: bool = False
     whisper_model: str = "small"

@@ -143,32 +143,33 @@ python -m clipmaker <link> --analyze-only
 # Hızlı deneme: yalnızca ilk 30 dakikayı analiz et:
 python -m clipmaker <link> --limit-minutes 30
 
-# Türkçe otomatik altyazı gömülü klipler:
-python -m clipmaker <link> --subtitles --lang tr
+# En iyi sonuç: yapay zeka jürisi + karaoke altyazı (zaten varsayılan):
+python -m clipmaker <link> --ai auto --lang tr
 
-# Yapay zeka jürisi (otomatik) + altyazı — en iyi sonuç:
-python -m clipmaker <link> --ai auto --subtitles --lang tr
+# Daha net altyazı (zayıf bilgisayarda daha yavaş):
+python -m clipmaker <link> --caption-model small
 
-# Ucuz model ile, daha fazla aday değerlendir:
-python -m clipmaker <link> --ai claude --ai-model claude-haiku-4-5 --judge-pool 20
+# Altyazısız, sade dikey klip istersen:
+python -m clipmaker <link> --no-captions
 ```
 
-### Altyazı (önemli)
+### Karaoke altyazı (paylaşıma hazır kliplerin olmazsa olmazı)
 
-Otomatik altyazı **varsayılan olarak kapalıdır** ve ayrı bir kütüphane gerektirir:
+Sosyal medyada klipleri "hazır" yapan şey, **kelime kelime hareketli altyazıdır**
+(konuşulan kelime vurgulanır; sessiz akışta bile izlenir). Bu **varsayılan olarak açıktır**.
 
 ```bash
-pip install faster-whisper
-python -m clipmaker <link> --subtitles --lang tr
+pip install faster-whisper      # tek seferlik; altyazı için gerekli
+python -m clipmaker <link> --ai auto --lang tr
 ```
 
-- `--subtitles` vermezseniz veya `faster-whisper` kurulu değilse klip üretilir ama
-  **altyazı eklenmez** (program başında bunu açıkça uyarır).
-- Altyazı, klibin sesinden otomatik yazıya dökülür. **Dikey (9:16) kliplerde** sosyal medya
-  stilinde **büyük, alt-orta** yazı kullanılır (Reels/Shorts/TikTok için okunaklı);
-  yatay kliplere normal boy altyazı gömülür.
-- İlk çalıştırmada whisper modeli (~birkaç yüz MB) indirilir. Daha hızlı/daha doğru için
-  `--whisper-model tiny|base|small|medium` seçebilirsiniz (varsayılan `small`).
+- Altyazı, **dikey (9:16)** klibe TikTok/Reels/Shorts tarzında büyük, ortada, konuşulan
+  kelime **sarı vurgulu** olarak gömülür. Ses de otomatik **normalize** edilir (loudnorm).
+- `faster-whisper` kurulu değilse klipler yine üretilir ama **altyazısız** (program başında
+  açıkça uyarır). Kapatmak için `--no-captions`.
+- Altyazı yalnızca seçilen **final klipler** için, klibin **yüksek kaliteli sesinden** üretilir
+  (hızlı ve doğru). Model: `--caption-model tiny|base|small` (varsayılan `base`; en net için `small`).
+- İlk çalıştırmada whisper modeli (~birkaç yüz MB) bir kez indirilir.
 
 ### Çıktı yapısı
 
@@ -203,13 +204,15 @@ output/kanaladi_9f10b2c3/
 | `--judge-pool` | otomatik | jüriye sunulacak aday sayısı (varsayılan ≈ klip×3) |
 | `--transcribe-model` | base | jüri konuşma tanıma modeli: `tiny` (en hızlı) / `base` / `small` |
 | `--no-transcribe` | — | konuşmayı yazıya dökme; jüri yalnızca chat'e baksın |
-
-> **Yavaş bilgisayar / ekran kartı yok mu?** Konuşma tanıma işlemcide çalışır ve
-> ağır olabilir. Hız için: `--transcribe-model tiny --judge-pool 8` ekleyin ve ilk
-> denemede `--subtitles`'i bırakın (altyazı da modeli klip başına tekrar çalıştırır).
+| `--caption-model` | base | karaoke altyazı modeli: `tiny` / `base` / `small` (en net: `small`) |
+| `--no-captions` | — | kelime kelime hareketli altyazıyı kapat (varsayılan açık) |
+| `--no-normalize` | — | ses yüksekliği normalizasyonunu (loudnorm) kapat |
 | `--no-chat` / `--no-audio` | — | bir sinyali tamamen kapat |
 | `--quality` | best | klip kesiminde kullanılacak video kalitesi (`best`/`worst`) |
 | `--bucket` | 5 | analiz penceresi (saniye); küçültmek hassasiyeti artırır |
+
+> **Yavaş bilgisayar / ekran kartı yok mu?** Konuşma tanıma işlemcide çalışır.
+> Hız için: `--transcribe-model tiny --caption-model tiny --judge-pool 8`.
 
 > **İpucu — klipler hâlâ "tam o anı" yakalamıyorsa:** chat tepkisi yavaşsa
 > `--chat-lag 6`, hızlıysa `--chat-lag 2` deneyin. Komik anları daha çok kovalamak için
@@ -262,7 +265,7 @@ ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
 | `clipmaker/transcribe.py` | aday anların konuşmasını Whisper ile yazıya döker |
 | `clipmaker/ai_judge.py` | yapay zeka jürisi (Claude / Ollama) — içeriği puanlar |
 | `clipmaker/media.py` | ffmpeg: varyant seçimi, kesim, 9:16 dönüştürme, kapak |
-| `clipmaker/subtitles.py` | opsiyonel faster-whisper altyazı |
+| `clipmaker/captions.py` | kelime kelime karaoke altyazı (ASS) üretimi |
 | `clipmaker/pipeline.py` | uçtan uca akış + önbellekleme |
 | `clipmaker/cli.py` | komut satırı arayüzü |
 

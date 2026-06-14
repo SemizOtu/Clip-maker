@@ -75,11 +75,18 @@ def build_parser() -> argparse.ArgumentParser:
                    help="klip kesme; yalnızca analiz raporu üret")
     g.add_argument("--title", default=None, help="dikey klibin üstüne yazılacak başlık")
 
-    g = p.add_argument_group("altyazı (faster-whisper gerektirir)")
-    g.add_argument("--subtitles", action="store_true", help="otomatik altyazı üret ve göm")
+    g = p.add_argument_group("altyazı / karaoke caption (faster-whisper gerektirir, VARSAYILAN AÇIK)")
+    g.add_argument("--no-captions", action="store_true",
+                   help="kelime kelime hareketli altyazıyı kapat (varsayılan açık)")
+    g.add_argument("--caption-model", default="base", metavar="AD",
+                   help="caption için konuşma tanıma modeli: tiny/base/small/medium "
+                        "(varsayılan: base; en iyi okunabilirlik için 'small')")
     g.add_argument("--lang", default="tr", help="konuşma dili (varsayılan: tr)")
-    g.add_argument("--whisper-model", default="small",
-                   help="whisper model boyu: tiny/base/small/medium (varsayılan: small)")
+    g.add_argument("--no-normalize", action="store_true",
+                   help="ses yüksekliği normalizasyonunu kapat (loudnorm)")
+    # Geriye dönük uyumluluk (artık caption varsayılan açık)
+    g.add_argument("--subtitles", action="store_true", help=argparse.SUPPRESS)
+    g.add_argument("--whisper-model", default=None, help=argparse.SUPPRESS)
 
     g = p.add_argument_group("kaynak seçenekleri")
     g.add_argument("--list", action="store_true", help="kanalın VOD'larını listele ve çık")
@@ -129,8 +136,12 @@ def main(argv: list[str] | None = None) -> int:
         quality=args.quality,
         analyze_only=args.analyze_only,
         title=args.title,
-        subtitles=args.subtitles,
+        captions=not args.no_captions,
+        # eski --whisper-model verildiyse caption modeli olarak kullan
+        caption_model=args.whisper_model or args.caption_model,
         language=args.lang,
-        whisper_model=args.whisper_model,
+        normalize_audio=not args.no_normalize,
+        subtitles=args.subtitles,
+        whisper_model=args.whisper_model or "small",
     )
     return run_pipeline(settings)
