@@ -12,6 +12,7 @@ Kullanılan uç noktalar (topluluk tarafından belgelenmiştir):
 """
 from __future__ import annotations
 
+import json
 import re
 import time
 from dataclasses import dataclass
@@ -210,7 +211,7 @@ class KickClient:
         return self.get_json(f"{BASE_URL}/api/v1/channels/{slug}")
 
     def get_video(self, uuid: str) -> VodInfo:
-        data = self.get_json(f"{BASE_URL}/api/v1/video/{uuid}")
+        data = self._video_json(uuid)
         ls = data.get("livestream") or {}
         ch = ls.get("channel") or data.get("channel") or {}
         started = parse_kick_time(
@@ -227,6 +228,32 @@ class KickClient:
             thumbnail=(ls.get("thumbnail") or {}).get("src")
             if isinstance(ls.get("thumbnail"), dict) else ls.get("thumbnail"),
             views=data.get("views"),
+        )
+
+    def _video_json(self, uuid: str) -> dict:
+        """VOD bilgisini birden çok uç noktadan dener (Kick zaman zaman taşıyor)."""
+        candidates = [
+            f"{BASE_URL}/api/v1/video/{uuid}",
+            f"{WEB_BASE_URL}/api/v1/video/{uuid}",
+            f"{BASE_URL}/api/v2/video/{uuid}",
+        ]
+        last_status = None
+        for url in candidates:
+            status, text = self.raw_get(url)
+            last_status = status
+            if status == 200:
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError:
+                    continue
+        raise KickAPIError(
+            f"VOD bulunamadı (HTTP {last_status}): {uuid}\n"
+            "Bu yayın silinmiş ya da süresi dolmuş olabilir. Yapılabilecekler:\n"
+            "  1) Kanal bağlantısını verin (en yeni yayını otomatik alır):\n"
+            "     python -m clipmaker https://kick.com/KANALADI\n"
+            "  2) Mevcut VOD'ları listeleyip seçin:\n"
+            "     python -m clipmaker https://kick.com/KANALADI --list\n"
+            "  3) Tarayıcıda VOD'un hâlâ açıldığını doğrulayın."
         )
 
     def list_videos(self, slug: str) -> list[VodInfo]:
