@@ -26,26 +26,34 @@ DEFAULT_OLLAMA_MODEL = "llama3.1"
 OLLAMA_URL = "http://localhost:11434"
 
 SYSTEM_PROMPT = (
-    "Sen bir Kick yayıncısı için sosyal medya klip küratörüsün. Görevin, bir "
-    "yayından çıkarılmış aday anları değerlendirip hangilerinin TikTok / Reels "
-    "/ Shorts / Twitter'da tek başına paylaşıldığında izleyiciyi yakalayacağını "
-    "seçmek.\n\n"
-    "Her aday için o anda KONUŞULANLAR (transcript) ve CHAT TEPKİLERİ verilir. "
-    "Her adayı 0-100 arasında puanla:\n"
-    "- 80-100: gerçekten komik, şok edici, dramatik ya da 'bunu paylaşmam lazım' "
-    "dedirten anlar (net bir espri, beklenmedik olay, güçlü tepki, clutch an).\n"
-    "- 40-79: fena değil, bağlamı olan ama sıra dışı olmayan anlar.\n"
-    "- 0-39: sıkıcı, bağlamı kopuk, anlamsız ya da sadece kalabalık olduğu için "
-    "öne çıkmış anlar (selamlaşma, sponsor, boş muhabbet, tek kelimelik tepki).\n\n"
-    "Yalnızca yüksek sesli ya da yoğun chat olması yüksek puan demek DEĞİLDİR; "
-    "içerik anlamlı ve ilgi çekici olmalı. Klibin tek başına, bağlam olmadan "
-    "izleneceğini unutma.\n\n"
-    "ÖNEMLİ: Takip/abone/düello/raid/bağış bot bildirimleri ('takip için teşekkürler', "
-    "'düelloyu kabul etti', 'has subscribed' vb.), sponsor/reklam ve sadece selamlaşma "
-    "anları KLİP DEĞİLDİR — bunlara düşük puan ver. Yüksek puanı gerçek espri, "
-    "beklenmedik olay, güçlü tepki ya da clutch anlara sakla.\n\n"
-    "Her aday için kısa ve dürüst (clickbait olmayan) bir Türkçe başlık ve bir "
-    "kategori üret: komik | çarpıcı | dramatik | yetenek | tepki | bilgi | diğer."
+    "Sen viral klip yapan deneyimli bir editörsün. Bir Kick yayınından çıkarılmış "
+    "aday anları değerlendirip SADECE gerçekten paylaşmaya değer olanları seçeceksin. "
+    "Çok SEÇİCİ ol — bir izleyici akışı kaydırırken DURDURACAK kadar iyi olmayan her "
+    "şey çöptür.\n\n"
+    "Sana her aday için o anda KONUŞULANLAR (transcript) ve CHAT TEPKİLERİ verilir. "
+    "Önce KONUŞMAYA bak: yayıncı komik/şaşırtıcı/etkileyici bir şey mi söyledi/yaptı? "
+    "Sonra chat'in nasıl tepki verdiğine bak (gülme, şok, 'klip', 'OHA').\n\n"
+    "Puanlama (acımasız ol, çoğu aday DÜŞÜK almalı):\n"
+    "- 85-100: NET bir şekilde komik, şok edici, dramatik ya da etkileyici. Tek başına "
+    "izlenince bile güldürür/şaşırtır. (iyi bir espri/laf sokma, beklenmedik olay, "
+    "komik fail, clutch/insanüstü oyun, duygusal/dramatik an, çarpıcı bir itiraf/hikaye)\n"
+    "- 50-84: ilginç ama sıra dışı değil; ortalama.\n"
+    "- 0-49: SIKICI. Düz muhabbet, oyun beklerken, ayar yaparken, donation okurken, "
+    "selamlaşma, sponsor, teknik konuşma, anlamı kopuk/yarım cümle, tek kelimelik tepki.\n\n"
+    "Örnekler:\n"
+    "- YÜKSEK (92): Yayıncı bir şeye çok komik bir tepki verir, chat 'KEKW HAHAHA "
+    "klip' diye akar.\n"
+    "- YÜKSEK (88): Beklenmedik bir jumpscare, yayıncı bağırır, chat 'OHA korktu'.\n"
+    "- DÜŞÜK (15): 'evet abi bir saniye', 'şimdi şuraya bakalım', sessiz oynanış, "
+    "takip bildirimi okuma.\n\n"
+    "KURALLAR:\n"
+    "- Sadece yüksek ses ya da yoğun chat YÜKSEK PUAN DEĞİLDİR; içerik anlamlı olmalı.\n"
+    "- Takip/abone/düello/raid/bağış/sponsor bildirimleri ve boş selamlaşma KLİP DEĞİLDİR.\n"
+    "- Transcript boş/anlamsızsa ve chat de güçlü değilse düşük puan ver.\n"
+    "- Aynı anların kopyasını seçme; çeşitlilik iyidir.\n\n"
+    "Her aday için: kısa ve dürüst (clickbait olmayan, abartısız) bir Türkçe başlık ve "
+    "kategori (komik | çarpıcı | dramatik | yetenek | tepki | bilgi | diğer) üret. "
+    "reason alanına neden o puanı verdiğini tek cümleyle yaz."
 )
 
 # Yapılandırılmış çıktı şeması (Claude output_config.format için)
@@ -93,20 +101,32 @@ class Verdict:
     reason: str = ""
 
 
+def _intensity(z: float) -> str:
+    if z >= 3.0:
+        return "çok yüksek"
+    if z >= 1.5:
+        return "yüksek"
+    if z >= 0.5:
+        return "orta"
+    return "düşük"
+
+
 def build_user_prompt(candidates: list[Candidate], num_clips: int) -> str:
     lines = [
         f"Aşağıda bir yayından {len(candidates)} aday an var. En iyi {num_clips} "
-        "tanesini seçeceğiz. Her adayı puanla ve JSON döndür.\n",
+        "tanesini seçeceğiz. ACIMASIZ ve seçici ol — sıkıcı anlara düşük puan ver. "
+        "Her adayı puanla ve JSON döndür.\n",
     ]
     for c in candidates:
-        lines.append(f"--- Aday {c.index} ({c.start_ts}–{c.end_ts}) ---")
+        lines.append(f"--- Aday {c.index} ({c.start_ts}–{c.end_ts}) | "
+                     f"chat tepkisi: {_intensity(c.chat_z)}, ses tepkisi: {_intensity(c.audio_z)} ---")
         transcript = c.transcript.strip() or "(konuşma metni yok)"
-        lines.append(f"Konuşma: {transcript[:1200]}")
+        lines.append(f"KONUŞMA: {transcript[:1500]}")
         if c.chat:
-            msgs = "; ".join(f"{m['user']}: {m['text']}" for m in c.chat[:12])
-            lines.append(f"Chat tepkileri: {msgs[:1000]}")
+            msgs = " | ".join(f"{m['user']}: {m['text']}" for m in c.chat[:15])
+            lines.append(f"CHAT: {msgs[:1200]}")
         else:
-            lines.append("Chat tepkileri: (yok)")
+            lines.append("CHAT: (kayda değer tepki yok)")
         lines.append("")
     lines.append(
         "Her aday için index, score (0-100 tam sayı), category, title (kısa Türkçe "
@@ -214,10 +234,12 @@ def _plain_kwargs(model: str, user_prompt: str) -> dict:
 
 
 class OllamaJudge:
-    name = "Ollama (yerel)"
-
     def __init__(self, model: Optional[str] = None):
         self.model = model or DEFAULT_OLLAMA_MODEL
+
+    @property
+    def name(self) -> str:
+        return f"Ollama: {self.model}"
 
     def judge(self, candidates: list[Candidate], num_clips: int) -> list[Verdict]:
         valid = {c.index for c in candidates}
@@ -265,12 +287,45 @@ def claude_available() -> bool:
         return False
 
 
+def ollama_models() -> list[str]:
+    """Ollama'da kurulu modellerin adlarını döndürür (yoksa [])."""
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=3.0) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        return [str(m.get("name", "")) for m in data.get("models", []) if m.get("name")]
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return []
+
+
 def ollama_available() -> bool:
     try:
         with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=2.0) as r:
             return r.status == 200
     except (urllib.error.URLError, TimeoutError, OSError):
         return False
+
+
+# Türkçe mizah/değerlendirme için tercih sırası (kurulu olan ilk eşleşme seçilir)
+OLLAMA_PREFERENCE = ["qwen2.5", "qwen3", "gemma2", "llama3.1", "qwen2", "mistral",
+                     "llama3.2", "llama3", "gemma"]
+
+
+def pick_ollama_model(installed: list[str]) -> str:
+    """Kurulu modeller arasından en iyi olduğu düşünüleni seçer."""
+    if not installed:
+        return DEFAULT_OLLAMA_MODEL
+    bases: dict[str, str] = {}
+    for full in installed:
+        base = full.split(":")[0]
+        bases.setdefault(base, full)
+    for pref in OLLAMA_PREFERENCE:
+        if pref in bases:
+            return bases[pref]
+    return installed[0]
+
+
+def _ollama_judge() -> "OllamaJudge":
+    return OllamaJudge(pick_ollama_model(ollama_models()))
 
 
 def select_judge(backend: str, model: Optional[str] = None):
@@ -284,12 +339,12 @@ def select_judge(backend: str, model: Optional[str] = None):
         return None, "ANTHROPIC_API_KEY tanımlı değil ya da 'anthropic' kurulu değil"
     if backend == "ollama":
         if ollama_available():
-            return OllamaJudge(model), None
+            return (OllamaJudge(model) if model else _ollama_judge()), None
         return None, "Ollama localhost:11434'te çalışmıyor"
     # auto
     if claude_available():
         return ClaudeJudge(model), None
     if ollama_available():
-        return OllamaJudge(model), None
+        return (OllamaJudge(model) if model else _ollama_judge()), None
     return None, ("ne ANTHROPIC_API_KEY ne de yerel Ollama bulundu; "
                   "sinyal sıralaması kullanılacak")

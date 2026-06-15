@@ -29,6 +29,10 @@ class Settings:
     chat_lag_s: float = 4.0                  # chat'in olaya göre gecikmesi (telafi)
     limit_minutes: Optional[float] = None    # sadece ilk X dakikayı analiz et (test için)
 
+    # İzleyici klipleri (en iyi an için 'gerçek insan' sinyali — varsayılan tercih)
+    use_viewer_clips: bool = True            # önce izleyicilerin kestiği klipleri kullan
+    min_viewer_clips: int = 2                # bu kadar klip bulunursa izleyici-klip modu
+
     # Yapay zeka jürisi (içeriği anlayıp gerçekten ilgi çekici anları seçer)
     ai_backend: str = "auto"                 # auto | claude | ollama | off
     ai_model: Optional[str] = None           # None -> sağlayıcı varsayılanı

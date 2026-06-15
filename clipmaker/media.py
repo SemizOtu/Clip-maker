@@ -241,9 +241,13 @@ def extract_analysis_audio(
     source: str,
     out_wav: Path,
     limit_s: Optional[float] = None,
-    sample_rate: int = 8000,
+    sample_rate: int = 16000,
 ) -> Path:
-    """Analiz için tüm yayının sesini düşük çözünürlüklü WAV olarak indirir."""
+    """Analiz için tüm yayının sesini WAV olarak indirir.
+
+    16 kHz: hem RMS analizi hem de jürinin konuşma tanıması (Whisper'ın doğal
+    örnekleme hızı) için kullanılır — böylece transcript çok daha doğru olur.
+    """
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     args = ["-y"] + http_input_args(source) + ["-i", source]
     if limit_s:

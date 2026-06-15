@@ -71,6 +71,28 @@ class TestBuildPrompt(unittest.TestCase):
         self.assertIn("(konuşma metni yok)", p)  # boş transcript
 
 
+class TestPickOllamaModel(unittest.TestCase):
+    def test_prefers_qwen(self):
+        from clipmaker.ai_judge import pick_ollama_model
+        self.assertEqual(
+            pick_ollama_model(["llama3.1:latest", "qwen2.5:7b", "mistral:latest"]),
+            "qwen2.5:7b")
+
+    def test_falls_back_to_llama(self):
+        from clipmaker.ai_judge import pick_ollama_model
+        self.assertEqual(pick_ollama_model(["mistral:latest", "llama3.1:8b"]),
+                         "llama3.1:8b")
+
+    def test_unknown_returns_first(self):
+        from clipmaker.ai_judge import pick_ollama_model
+        self.assertEqual(pick_ollama_model(["someweirdmodel:latest"]),
+                         "someweirdmodel:latest")
+
+    def test_empty_returns_default(self):
+        from clipmaker.ai_judge import DEFAULT_OLLAMA_MODEL, pick_ollama_model
+        self.assertEqual(pick_ollama_model([]), DEFAULT_OLLAMA_MODEL)
+
+
 class TestSelectJudge(unittest.TestCase):
     def setUp(self):
         self._orig = (ai_judge.claude_available, ai_judge.ollama_available)

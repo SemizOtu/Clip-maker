@@ -10,13 +10,29 @@ ve sosyal medyada paylaşıma hazır klipler üretir:
 
 ## Nasıl çalışır?
 
-Sistem **iki aşamalıdır**: önce ucuz sinyallerle tüm yayından bol **aday** çıkarır,
-sonra (varsa) bir **yapay zeka jürisi** bu adayların *içeriğini* okuyup gerçekten
-komik/çarpıcı olanları seçer. Bu, OpusClip'in açık kaynak alternatiflerinin
+Sistem en iyi anları **iki yoldan** bulur ve hangisi varsa onu kullanır:
+
+### A) İzleyici klipleri (birincil — en güvenilir, hızlı, ücretsiz)
+
+İzleyiciler yayın sırasında en iyi/komik anları **kendileri klipler**. Bu, "paylaşmaya
+değer an" için var olan **en güvenilir sinyaldir** — gerçek insan kararı. Sistem kanalın
+kliplerini çeker, her birini `started_at − vod.started_at` ile VOD'daki yerine eşler,
+üst üste binenleri birleştirir ve **izlenme sayısına göre** sıralar. Yani sadece
+"insanların zaten en çok kliplediği" anları keser. **Ne yapay zeka, ne transcript, ne ses
+analizi gerekir** — chat/ses taramasına gerek kalmadığı için çok daha hızlıdır.
+
+### B) Sinyal + yapay zeka (yedek — VOD'da izleyici klibi yoksa)
+
+İzleyici klibi yoksa eski yola düşer: ucuz sinyallerle (chat yoğunluğu + ses) aday üretir,
+sonra (varsa) bir **yapay zeka jürisi** adayların *içeriğini* (konuşma + chat tepkisi)
+okuyup gerçekten komik/çarpıcı olanları seçer. Bu, OpusClip'in açık kaynak alternatiflerinin
 ([SamurAIGPT](https://github.com/samuraigpt/ai-youtube-shorts-generator),
-[ClipsAI](https://github.com/ClipsAI/clipsai), [openshorts](https://github.com/mutonby/openshorts))
-kullandığı **"Whisper ile yazıya dök → LLM ile öne çıkanı seç → dikey kes"**
-yaklaşımının livestream'e uyarlanmış hâlidir.
+[ClipsAI](https://github.com/ClipsAI/clipsai)) kullandığı yaklaşımın livestream'e
+uyarlanmış hâlidir.
+
+> Her iki yolda da seçilen klipler aynı şekilde işlenir: **9:16 dikey + kelime kelime
+> karaoke altyazı + ses normalizasyonu** (paylaşıma hazır). İzleyici-klip modunu kapatmak
+> için `--no-viewer-clips`.
 
 ```
 Aday üretimi (sinyaller) ──► aday havuzu ──► [yapay zeka jürisi] ──► en iyi N klip
@@ -194,7 +210,8 @@ output/kanaladi_9f10b2c3/
 | Parametre | Varsayılan | Açıklama |
 |---|---|---|
 | `-n, --clips` | 5 | üretilecek klip sayısı |
-| `-d, --duration` | 45 | klip süresi (saniye) |
+| `--no-viewer-clips` | — | izleyici kliplerini kullanma; doğrudan sinyal+yapay zeka moduna geç |
+| `-d, --duration` | 45 | klip süresi (saniye, yalnızca sinyal modunda) |
 | `--pre` | 0.35 | klibin ne kadarının zirveden *önce* başlayacağı (bağlam için) |
 | `--chat-weight` / `--audio-weight` | 0.6 / 0.4 | sinyal ağırlıkları |
 | `--agreement` | 0.7 | chat+ses aynı anda patlarsa eklenen uzlaşma bonusu |
@@ -258,7 +275,8 @@ ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
 
 | Modül | Görev |
 |---|---|
-| `clipmaker/kick_api.py` | Kick API istemcisi (curl_cffi ile Cloudflare aşımı), VOD + chat tekrarı |
+| `clipmaker/kick_api.py` | Kick API istemcisi (curl_cffi ile Cloudflare aşımı), VOD + chat + klipler |
+| `clipmaker/clips_source.py` | izleyici kliplerini VOD'a eşleme, kümeleme, popülerliğe göre sıralama |
 | `clipmaker/chat_analysis.py` | mesaj yoğunluğu + hype kalıpları → z-skor sinyali |
 | `clipmaker/audio_analysis.py` | RMS ses enerjisi + yenilik → z-skor sinyali |
 | `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız aday seçimi |

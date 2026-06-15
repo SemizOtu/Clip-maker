@@ -55,18 +55,18 @@ def write_report(
         "",
     ]
 
-    used_ai = any(h.ai_score is not None for h in highlights)
-    if used_ai:
+    used_rich = any((h.ai_score is not None) or h.title for h in highlights)
+    if used_rich:
         lines += [
-            "| # | Zaman | AI | Kategori | Başlık | Skor | Chat | Ses |",
-            "|---|-------|----|----------|--------|------|------|-----|",
+            "| # | Zaman | Kategori | Başlık | Gerekçe |",
+            "|---|-------|----------|--------|---------|",
         ]
         for h in highlights:
             title = (h.title or "—").replace("|", "\\|")
+            note = (h.reason or (f"AI {h.ai_score:.0f}/100" if h.ai_score is not None else "—")).replace("|", "\\|")
             lines.append(
                 f"| {h.rank} | {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)} "
-                f"| {('%.0f' % h.ai_score) if h.ai_score is not None else '—'} "
-                f"| {h.category or '—'} | {title} | {h.score:.2f} | {h.chat_z:.1f} | {h.audio_z:.1f} |"
+                f"| {h.category or '—'} | {title} | {note} |"
             )
         lines += [
             "",
@@ -77,8 +77,7 @@ def write_report(
             "",
         ]
         for h in highlights:
-            lines.append(f"### {h.rank}. {h.title or fmt_ts(h.start_s)}  "
-                         f"(AI {('%.0f' % h.ai_score) if h.ai_score is not None else '—'}/100, {h.category or '—'})")
+            lines.append(f"### {h.rank}. {h.title or fmt_ts(h.start_s)}  ({h.category or '—'})")
             lines.append(f"- **Zaman:** {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}")
             if h.reason:
                 lines.append(f"- **Neden seçildi:** {h.reason}")

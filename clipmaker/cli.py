@@ -37,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--min-gap", type=float, default=None, metavar="SN",
                    help="iki klip arası asgari mesafe, saniye (varsayılan: süre x 1.2)")
 
+    g = p.add_argument_group("seçim")
+    g.add_argument("--no-viewer-clips", action="store_true",
+                   help="izleyicilerin kestiği klipleri kullanma; doğrudan sinyal+yapay zeka moduna geç")
+
     g = p.add_argument_group("analiz")
     g.add_argument("--no-chat", action="store_true", help="chat analizini kapat")
     g.add_argument("--no-audio", action="store_true", help="ses analizini kapat")
@@ -117,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         clip_duration=args.duration,
         pre_peak_ratio=args.pre,
         min_gap_factor=(args.min_gap / args.duration) if args.min_gap else 1.2,
+        use_viewer_clips=not args.no_viewer_clips,
         use_chat=not args.no_chat,
         use_audio=not args.no_audio,
         bucket_s=args.bucket,

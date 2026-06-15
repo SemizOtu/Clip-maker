@@ -177,7 +177,8 @@ def analyze_chat(
         sum(c - 1 for c in texts.values() if c > 1) for texts in bucket_texts
     ], dtype=float)
 
-    base = counts + 1.6 * hype + 0.4 * uniq + 1.2 * repeat
+    # hype (kahkaha, "klip", OHA...) ağır basar — komik anlar aday olarak öne çıksın
+    base = counts + 2.4 * hype + 0.4 * uniq + 1.3 * repeat
     # patlama (burst): yerel ortalamanın üzerine çıkan ani sıçrama
     baseline = rolling_baseline(base, win=max(5, int(round(60.0 / bucket_s))))
     burst = np.clip(base - baseline, 0.0, None)

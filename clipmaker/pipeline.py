@@ -85,76 +85,24 @@ def run_pipeline(settings: Settings) -> int:
     cache_dir.mkdir(parents=True, exist_ok=True)
     log(f"  Çalışma klasörü: {workdir}")
 
-    # 3) Chat analizi
-    chat_signal: Optional[ChatSignal] = None
-    if settings.use_chat:
-        log("[3/6] Chat tekrarı alınıyor...")
-        messages = _fetch_chat_cached(client, vod, analysis_duration, cache_dir)
-        if messages:
-            chat_signal = analyze_chat(messages, analysis_duration, settings.bucket_s,
-                                       lag_s=settings.chat_lag_s)
-            log(f"  {len(messages)} mesaj analiz edildi.")
-        else:
-            log("  ! Chat verisi alınamadı; yalnızca ses sinyali kullanılacak.")
-    else:
-        log("[3/6] Chat analizi atlandı (--no-chat).")
+    # ÖNCE: izleyici klipleri (en güvenilir 'en iyi an' sinyali — hızlı, LLM'siz)
+    highlights: Optional[list[Highlight]] = None
+    if (settings.use_viewer_clips and not settings.m3u8_override
+            and vod.channel_slug and vod.started_at):
+        highlights = _select_from_viewer_clips(client, vod, settings)
 
-    # 4) Ses analizi
-    audio_signal: Optional[AudioSignal] = None
-    if settings.use_audio:
-        log("[4/6] Ses indiriliyor ve analiz ediliyor (uzun yayınlarda zaman alabilir)...")
-        audio_signal = _analyze_audio_cached(analysis_source, analysis_duration, cache_dir, settings)
-        if audio_signal is None:
-            log("  ! Ses analizi başarısız; yalnızca chat sinyali kullanılacak.")
-    else:
-        log("[4/6] Ses analizi atlandı (--no-audio).")
-
-    if chat_signal is None and audio_signal is None:
-        log("HATA: Hiçbir sinyal üretilemedi (chat de ses de yok). Klip seçimi imkânsız.")
+    # İzleyici klibi yoksa: sinyal (chat + ses) + yapay zeka jürisi
+    if highlights is None:
+        highlights = _signal_pipeline(client, vod, analysis_source,
+                                      analysis_duration, cache_dir, settings)
+    if not highlights:
         return 1
-
-    # 5) Aday havuzu + (varsa) yapay zeka jürisiyle seçim
-    log("[5/6] Öne çıkan anlar hesaplanıyor...")
-    score = combine_signals(
-        analysis_duration, settings.bucket_s,
-        chat=chat_signal, audio=audio_signal,
-        chat_weight=settings.chat_weight, audio_weight=settings.audio_weight,
-        agreement_weight=settings.agreement_weight,
-    )
-
-    from clipmaker.ai_judge import select_judge
-    judge, why_no_ai = select_judge(settings.ai_backend, settings.ai_model)
-    use_ai = judge is not None
-
-    # Yapay zeka açıksa jürinin seçebilmesi için geniş bir aday havuzu üret
-    pool_n = settings.num_clips
-    if use_ai:
-        auto_pool = max(settings.num_clips * 3, settings.num_clips + 6)
-        pool_n = settings.judge_pool if settings.judge_pool > 0 else min(auto_pool, 24)
-
-    candidates = pick_highlights(
-        score, settings.bucket_s, analysis_duration,
-        num_clips=pool_n,
-        clip_duration=settings.clip_duration,
-        pre_peak_ratio=settings.pre_peak_ratio,
-        min_gap_s=settings.clip_duration * settings.min_gap_factor,
-        min_z=(-1e9 if use_ai else 0.3),   # AI modunda havuzu daraltma
-    )
-    annotate_highlights(candidates, chat=chat_signal, audio=audio_signal)
-    if not candidates:
-        log("HATA: Öne çıkan an bulunamadı.")
-        return 1
-
-    if use_ai:
-        highlights = _ai_select(judge, candidates, analysis_source, cache_dir, settings)
-    else:
-        log(f"  Yapay zeka jürisi devre dışı ({why_no_ai}); sinyal sıralaması kullanılıyor.")
-        highlights = candidates[:settings.num_clips]
-        for i, h in enumerate(highlights, 1):
-            h.rank = i
 
     for h in highlights:
-        if h.ai_score is not None:
+        if h.category == "izleyici klibi":
+            log(f"  #{h.rank}  {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}  "
+                f"{h.reason} — {h.title or '—'}")
+        elif h.ai_score is not None:
             log(f"  #{h.rank}  {fmt_ts(h.start_s)}–{fmt_ts(h.end_s)}  "
                 f"AI={h.ai_score:.0f} [{h.category}] {h.title or '—'}")
         else:
@@ -178,6 +126,125 @@ def run_pipeline(settings: Settings) -> int:
         for kind, p in clip_files[rank].items():
             log(f"  Klip {rank} ({kind}): {p}")
     return 0
+
+
+# ---- izleyici klipleri (birincil seçim) ----
+
+def _select_from_viewer_clips(client: KickClient, vod: VodInfo,
+                              settings: Settings) -> Optional[list[Highlight]]:
+    """İzleyicilerin kestiği kliplerden en popüler anları seçer.
+
+    Yeterli klip bulunamazsa None döner (çağıran sinyal moduna düşer).
+    """
+    from clipmaker.clips_source import select_clip_moments
+
+    log("[3/6] İzleyici klipleri taranıyor (en iyi an için 'gerçek insan' sinyali)...")
+    try:
+        clips = client.list_clips(vod.channel_slug)
+    except KickAPIError as e:
+        log(f"  ! İzleyici klipleri alınamadı: {e}")
+        return None
+
+    moments = select_clip_moments(clips, vod.started_at, vod.duration_s, settings.num_clips)
+    if len(moments) < settings.min_viewer_clips:
+        log(f"  Bu VOD için yeterli izleyici klibi yok ({len(moments)} bulundu); "
+            "sinyal + yapay zeka moduna geçiliyor.")
+        return None
+
+    log(f"  {len(moments)} popüler izleyici-klip anı seçildi (chat/ses analizine gerek yok).")
+    highlights: list[Highlight] = []
+    for i, m in enumerate(moments, 1):
+        end = m.offset_s + m.duration_s
+        reason = f"{m.views} izlenme"
+        if m.count > 1:
+            reason += f", {m.count} izleyici kliplemiş"
+        highlights.append(Highlight(
+            rank=i, peak_s=m.offset_s + m.duration_s / 2,
+            start_s=m.offset_s, end_s=end, score=float(m.views),
+            category="izleyici klibi",
+            title=_clean_clip_title(m.title, m.views),
+            reason=reason,
+        ))
+    return highlights
+
+
+def _clean_clip_title(title: str, views: int) -> str:
+    t = (title or "").strip()
+    if not t or t.lower() in ("clip", "klip", "untitled", "new clip"):
+        return f"Öne çıkan an ({views} izlenme)"
+    return t[:80]
+
+
+def _signal_pipeline(client: KickClient, vod: VodInfo, analysis_source: str,
+                     analysis_duration: float, cache_dir: Path,
+                     settings: Settings) -> list[Highlight]:
+    """İzleyici klibi yoksa: chat + ses sinyali + (varsa) yapay zeka jürisi."""
+    # 3) Chat analizi
+    chat_signal: Optional[ChatSignal] = None
+    if settings.use_chat:
+        log("[4/6] Chat tekrarı alınıyor...")
+        messages = _fetch_chat_cached(client, vod, analysis_duration, cache_dir)
+        if messages:
+            chat_signal = analyze_chat(messages, analysis_duration, settings.bucket_s,
+                                       lag_s=settings.chat_lag_s)
+            log(f"  {len(messages)} mesaj analiz edildi.")
+        else:
+            log("  ! Chat verisi alınamadı; yalnızca ses sinyali kullanılacak.")
+    else:
+        log("[4/6] Chat analizi atlandı (--no-chat).")
+
+    # 4) Ses analizi
+    audio_signal: Optional[AudioSignal] = None
+    if settings.use_audio:
+        log("[5/6] Ses indiriliyor ve analiz ediliyor (uzun yayınlarda zaman alabilir)...")
+        audio_signal = _analyze_audio_cached(analysis_source, analysis_duration, cache_dir, settings)
+        if audio_signal is None:
+            log("  ! Ses analizi başarısız; yalnızca chat sinyali kullanılacak.")
+    else:
+        log("[5/6] Ses analizi atlandı (--no-audio).")
+
+    if chat_signal is None and audio_signal is None:
+        log("HATA: Hiçbir sinyal üretilemedi (chat de ses de yok). Klip seçimi imkânsız.")
+        return []
+
+    # 5) Aday havuzu + (varsa) yapay zeka jürisiyle seçim
+    log("  Öne çıkan anlar hesaplanıyor...")
+    score = combine_signals(
+        analysis_duration, settings.bucket_s,
+        chat=chat_signal, audio=audio_signal,
+        chat_weight=settings.chat_weight, audio_weight=settings.audio_weight,
+        agreement_weight=settings.agreement_weight,
+    )
+
+    from clipmaker.ai_judge import select_judge
+    judge, why_no_ai = select_judge(settings.ai_backend, settings.ai_model)
+    use_ai = judge is not None
+
+    pool_n = settings.num_clips
+    if use_ai:
+        auto_pool = max(settings.num_clips * 3, settings.num_clips + 6)
+        pool_n = settings.judge_pool if settings.judge_pool > 0 else min(auto_pool, 24)
+
+    candidates = pick_highlights(
+        score, settings.bucket_s, analysis_duration,
+        num_clips=pool_n,
+        clip_duration=settings.clip_duration,
+        pre_peak_ratio=settings.pre_peak_ratio,
+        min_gap_s=settings.clip_duration * settings.min_gap_factor,
+        min_z=(-1e9 if use_ai else 0.3),
+    )
+    annotate_highlights(candidates, chat=chat_signal, audio=audio_signal)
+    if not candidates:
+        log("HATA: Öne çıkan an bulunamadı.")
+        return []
+
+    if use_ai:
+        return _ai_select(judge, candidates, analysis_source, cache_dir, settings)
+    log(f"  Yapay zeka jürisi devre dışı ({why_no_ai}); sinyal sıralaması kullanılıyor.")
+    chosen = candidates[:settings.num_clips]
+    for i, h in enumerate(chosen, 1):
+        h.rank = i
+    return chosen
 
 
 # ---- yapay zeka jürisi ----
@@ -205,9 +272,9 @@ def _ai_select(judge, candidates: list[Highlight], analysis_source: str,
         key = f"{round(h.start_s, 1)}"
         tx = transcripts.get(key, "")
         if do_tx and not tx:
-            # Tüm klibi değil, zirvenin etrafındaki ~30 sn'yi çevir (hız)
-            tw_start = max(h.start_s, h.peak_s - 15.0)
-            tw_dur = max(5.0, min(h.end_s, tw_start + 30.0) - tw_start)
+            # Zirvenin etrafındaki bağlamı çevir (kurulum + bitiş görülsün)
+            tw_start = max(h.start_s, h.peak_s - 22.0)
+            tw_dur = max(5.0, min(h.end_s, tw_start + 40.0) - tw_start)
             t0 = time.time()
             tx = transcribe_window(analysis_source, tw_start, tw_dur,
                                    cache_dir, settings.language, settings.transcribe_model,
@@ -359,17 +426,19 @@ def _analyze_audio_cached(
 ) -> Optional[AudioSignal]:
     wav = cache_dir / "audio.wav"
     meta = cache_dir / "audio.json"
+    want_sr = 16000
     cached_ok = False
     if wav.exists() and meta.exists():
         try:
             m = json.loads(meta.read_text())
-            cached_ok = m.get("duration_s", 0) >= duration_s - 1
+            cached_ok = (m.get("duration_s", 0) >= duration_s - 1
+                         and m.get("sr", 0) == want_sr)
         except json.JSONDecodeError:
             pass
     if not cached_ok:
         try:
-            extract_analysis_audio(source, wav, limit_s=duration_s)
-            meta.write_text(json.dumps({"duration_s": duration_s}))
+            extract_analysis_audio(source, wav, limit_s=duration_s, sample_rate=want_sr)
+            meta.write_text(json.dumps({"duration_s": duration_s, "sr": want_sr}))
         except MediaError as e:
             log(f"  ! Ses indirilemedi: {e}")
             return None

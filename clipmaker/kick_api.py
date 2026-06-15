@@ -58,6 +58,19 @@ class ChatMessage:
     content: str
 
 
+@dataclass
+class Clip:
+    """İzleyicinin kestiği klip (en iyi an için 'gerçek insan' sinyali)."""
+    id: str
+    started_at: Optional[datetime]   # klibin yayındaki başlama anı (UTC)
+    duration_s: float
+    views: int = 0
+    likes: int = 0
+    title: str = ""
+    category: str = ""
+    vod_id: str = ""
+
+
 def parse_vod_url(url: str) -> tuple[str, str]:
     """Bağlantıyı çöz: ("video", uuid) ya da ("channel", slug) döndürür."""
     u = (url or "").strip().rstrip("/")
@@ -237,6 +250,68 @@ class KickClient:
                 views=it.get("views"),
             ))
         return vods
+
+    def list_clips(self, slug: str, max_pages: int = 25) -> list[Clip]:
+        """Kanalın izleyici kliplerini sayfalayarak toplar (api/v2/channels/{slug}/clips).
+
+        İzleyiciler en iyi/komik anları yayın sırasında kliplediği için bu, 'en
+        iyi an' için en güvenilir sinyaldir. En yeni klipler önce gelecek şekilde
+        sayfalanır; çağıran, klipleri started_at'e göre ilgili VOD'a eşler.
+        """
+        clips: list[Clip] = []
+        cursor = "0"
+        for _ in range(max_pages):
+            data = self.get_json(
+                f"{BASE_URL}/api/v2/channels/{slug}/clips",
+                params={"cursor": cursor, "sort": "date"},
+            )
+            items = self._extract_clip_items(data)
+            if not items:
+                break
+            for it in items:
+                if not isinstance(it, dict):
+                    continue
+                vod = it.get("vod") or {}
+                clips.append(Clip(
+                    id=str(it.get("id") or ""),
+                    started_at=parse_kick_time(it.get("started_at") or it.get("created_at")),
+                    duration_s=float(it.get("duration") or 0) or 0.0,
+                    views=int(it.get("views") or it.get("view_count") or 0),
+                    likes=int(it.get("likes") or it.get("likes_count") or 0),
+                    title=str(it.get("title") or "").strip(),
+                    category=str((it.get("category") or {}).get("name") or "").strip()
+                    if isinstance(it.get("category"), dict) else str(it.get("category") or ""),
+                    vod_id=str(vod.get("uuid") or vod.get("id") or ""),
+                ))
+            cursor = self._next_cursor(data)
+            if not cursor:
+                break
+            time.sleep(self.request_delay)
+        return clips
+
+    @staticmethod
+    def _extract_clip_items(data) -> list:
+        if isinstance(data, dict):
+            for key in ("clips", "data"):
+                if isinstance(data.get(key), list):
+                    return data[key]
+        if isinstance(data, list):
+            return data
+        return []
+
+    @staticmethod
+    def _next_cursor(data) -> str:
+        if not isinstance(data, dict):
+            return ""
+        for key in ("nextCursor", "next_cursor"):
+            if data.get(key):
+                return str(data[key])
+        pag = data.get("pagination")
+        if isinstance(pag, dict):
+            for key in ("nextCursor", "next_cursor"):
+                if pag.get(key):
+                    return str(pag[key])
+        return ""
 
     def resolve_vod(self, url: str, pick_index: int = 0) -> VodInfo:
         """Verilen bağlantıdan VOD bilgisini çıkarır (kanal linkiyse VOD seçer)."""
