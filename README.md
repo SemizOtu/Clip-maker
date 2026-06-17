@@ -1,14 +1,60 @@
-# 🎬 Clip Maker — Kick Yayınlarından Otomatik Klip Üretici
+# 🎬 Clip Maker — Klip Hazırlayıcı + Kick Otomatik Klipçi
 
-Kick'teki **geçmiş yayınları (VOD)** analiz eder, **en dikkat çekici anları otomatik bulur**
-ve sosyal medyada paylaşıma hazır klipler üretir:
+İki kullanım bir arada:
 
-- 📺 **Yatay MP4** (YouTube, Twitter/X için)
-- 📱 **9:16 dikey MP4** — bulanık arka planlı (TikTok, Instagram Reels, YouTube Shorts için)
-- 🖼️ Her klip için **kapak görseli** (thumbnail)
-- 📋 Zaman damgalı **analiz raporu** (hangi an neden seçildi, öne çıkan chat mesajları)
+### 1) Klip editörü (ana kullanım) — kendi klibini sosyal medyaya hazırla
+Bir video dosyası verirsin, sistem onu **paylaşıma hazır** hale getirir:
+- 📱 **9:16 dikey MP4** (TikTok / Reels / Shorts) — bulanık arka planlı, görüntü kırpılmadan
+- 🔤 **Kelime kelime karaoke altyazı** (konuşulan kelime sarı vurgulu — sessiz akışta bile izlenir)
+- 🔊 **Ses normalizasyonu** (−16 LUFS — ne çok kısık ne çok yüksek)
+- 🟪 İsteğe bağlı **1:1 kare** ve **16:9 yatay** çıktı, üstte **başlık/hook**
+- ✂️ Baştan/sondan **kırpma**, birden çok dosyayı **birleştirme (montaj)**
+- 🖼️ **Kapak görseli** + paylaşım için **önerilen başlık/etiket** metni
 
-## Nasıl çalışır?
+```bash
+python -m clipmaker klibim.mp4
+```
+
+### 2) Kick otomatik klipçi (ikincil) — VOD'dan öne çıkan anları bul
+Bir Kick VOD/kanal bağlantısı verirsen, izleyici klipleri + chat/ses analiziyle öne çıkan
+anları bulup yukarıdaki tüm işlemleri uygular.
+
+```bash
+python -m clipmaker https://kick.com/kanaladi
+```
+
+---
+
+## Klip editörü — kullanım
+
+```bash
+# En basit: klibi 9:16 dikey + karaoke altyazılı yap
+python -m clipmaker klibim.mp4
+
+# Baştan/sondan kırp (montaj):
+python -m clipmaker klibim.mp4 --trim-start 0:05 --trim-end 0:35
+
+# Dikey + kare üret, üste başlık koy:
+python -m clipmaker klibim.mp4 --formats vertical,square --title "şuna bak"
+
+# Birden çok parçayı tek videoya birleştir (montaj):
+python -m clipmaker parca1.mp4 parca2.mp4 parca3.mp4
+
+# Altyazısız, sade:
+python -m clipmaker klibim.mp4 --no-captions
+```
+
+Çıktılar `output/<dosyaadı>_hazir/` klasörüne düşer: `vertical.mp4` (ve istenirse
+`square.mp4` / `horizontal.mp4`), `kapak.jpg`, `paylasim_metni.txt`.
+
+> **Altyazı için** `faster-whisper` gerekir (tek seferlik): `pip install faster-whisper`.
+> Kurulu değilse klip yine üretilir, sadece altyazısız olur. Daha net altyazı için
+> `--caption-model small` (biraz daha yavaş). Windows'ta dosya yolunu tırnak içine al:
+> `python -m clipmaker "C:\Users\Ben\Videolar\klibim.mp4"`.
+
+---
+
+## Kick otomatik klipçi — nasıl çalışır?
 
 Sistem en iyi anları **iki yoldan** bulur ve hangisi varsa onu kullanır:
 
@@ -282,8 +328,9 @@ ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
 | `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız aday seçimi |
 | `clipmaker/transcribe.py` | aday anların konuşmasını Whisper ile yazıya döker |
 | `clipmaker/ai_judge.py` | yapay zeka jürisi (Claude / Ollama) — içeriği puanlar |
-| `clipmaker/media.py` | ffmpeg: varyant seçimi, kesim, 9:16 dönüştürme, kapak |
+| `clipmaker/editor.py` | klip editörü: kendi klibini sosyal medyaya hazırlar (ana kullanım) |
 | `clipmaker/captions.py` | kelime kelime karaoke altyazı (ASS) üretimi |
+| `clipmaker/media.py` | ffmpeg: yeniden çerçeveleme (9:16/1:1/16:9), kesim, altyazı gömme, loudnorm |
 | `clipmaker/pipeline.py` | uçtan uca akış + önbellekleme |
 | `clipmaker/cli.py` | komut satırı arayüzü |
 

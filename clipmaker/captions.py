@@ -24,7 +24,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Arial,76,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,2,2,80,80,360,1
+Style: Cap,Arial,{fontsize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,{outline},2,2,80,80,{marginv},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -113,8 +113,16 @@ def _chunk_words(words: list[dict]) -> list[list[dict]]:
 
 
 def build_ass(words: list[dict], play_w: int = PLAY_W, play_h: int = PLAY_H) -> str:
-    """Kelime-zamanlı listeden karaoke ASS altyazısı üretir (vurgulu aktif kelime)."""
-    lines = [_ASS_HEADER.format(w=play_w, h=play_h)]
+    """Kelime-zamanlı listeden karaoke ASS altyazısı üretir (vurgulu aktif kelime).
+
+    Font boyu ve alt boşluk hedef çözünürlüğe göre ölçeklenir; böylece dikey,
+    kare ve yatay formatların hepsinde okunaklı görünür.
+    """
+    fontsize = max(24, round(play_h * 0.040))   # 1920 -> ~76
+    marginv = max(40, round(play_h * 0.155))     # 1920 -> ~298
+    outline = max(2, round(play_h * 0.0026))     # 1920 -> ~5
+    lines = [_ASS_HEADER.format(w=play_w, h=play_h, fontsize=fontsize,
+                                marginv=marginv, outline=outline)]
     for chunk in _chunk_words(words):
         for j, w in enumerate(chunk):
             start = w["start"]
@@ -134,10 +142,11 @@ def build_ass(words: list[dict], play_w: int = PLAY_W, play_h: int = PLAY_H) -> 
     return "\n".join(lines) + "\n"
 
 
-def write_ass(words: list[dict], out_path: Path) -> Optional[Path]:
+def write_ass(words: list[dict], out_path: Path,
+              play_w: int = PLAY_W, play_h: int = PLAY_H) -> Optional[Path]:
     """ASS dosyasını yazar; konuşma yoksa None döner."""
     if not words:
         return None
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(build_ass(words), encoding="utf-8")
+    out_path.write_text(build_ass(words, play_w=play_w, play_h=play_h), encoding="utf-8")
     return out_path

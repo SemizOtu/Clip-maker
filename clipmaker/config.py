@@ -40,6 +40,11 @@ class Settings:
     transcribe_model: str = "base"           # jüri transcription modeli (tiny/base/small)
     judge_pool: int = 0                       # jüriye sunulacak aday sayısı (0 -> otomatik)
 
+    # Klip editörü (kendi klibini sosyal medyaya hazırla)
+    trim_start: Optional[float] = None       # baştan kırp (saniye)
+    trim_end: Optional[float] = None         # sona kadar (saniye)
+    formats: tuple = ("vertical",)           # vertical | square | horizontal
+
     # Çıktılar
     out_dir: Path = field(default_factory=lambda: Path("output"))
     horizontal: bool = True

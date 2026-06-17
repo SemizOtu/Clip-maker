@@ -12,24 +12,37 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="clipmaker",
         description=(
-            "Kick VOD'larından otomatik öne çıkan an klipleri üretir. "
-            "Chat yoğunluğu + ses enerjisi analiziyle en dikkat çekici anları bulur, "
-            "paylaşıma hazır MP4 (yatay + 9:16 dikey) çıkarır."
+            "İki kullanım: (1) KENDİ klibini sosyal medyaya hazırlar — 9:16 dikey + "
+            "kelime kelime karaoke altyazı + ses normalizasyonu; (2) bir Kick VOD/kanal "
+            "bağlantısı verilirse öne çıkan anları otomatik bulup klipler."
         ),
         epilog=(
-            "Örnekler:\n"
-            "  python -m clipmaker https://kick.com/kanaladi/videos/9f10b2c3-...\n"
-            "  python -m clipmaker https://kick.com/kanaladi            # en son VOD\n"
-            "  python -m clipmaker https://kick.com/kanaladi --list     # VOD'ları listele\n"
-            "  python -m clipmaker <link> -n 8 -d 30 --analyze-only\n"
-            "  python -m clipmaker <link> --subtitles --lang tr\n"
+            "Örnekler (kendi klibini hazırla):\n"
+            "  python -m clipmaker klibim.mp4\n"
+            "  python -m clipmaker klibim.mp4 --trim-start 0:05 --trim-end 0:35\n"
+            "  python -m clipmaker klibim.mp4 --formats vertical,square --title \"izle bunu\"\n"
+            "  python -m clipmaker parca1.mp4 parca2.mp4 parca3.mp4   # montaj (birleştir)\n"
+            "\nÖrnekler (Kick'ten otomatik klip):\n"
+            "  python -m clipmaker https://kick.com/kanaladi\n"
+            "  python -m clipmaker https://kick.com/kanaladi --list\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("url", help="Kick VOD ya da kanal bağlantısı")
+    p.add_argument("inputs", nargs="+", metavar="GİRDİ",
+                   help="bir video dosyası (kendi klibin) ya da Kick VOD/kanal bağlantısı "
+                        "(montaj için birden çok dosya verilebilir)")
     p.add_argument("--version", action="version", version=f"clipmaker {__version__}")
 
-    g = p.add_argument_group("klip seçimi")
+    g = p.add_argument_group("klip editörü (kendi klibini hazırla)")
+    g.add_argument("--trim-start", default=None, metavar="ZAMAN",
+                   help="baştan kırp (örn. 0:05 ya da 5)")
+    g.add_argument("--trim-end", default=None, metavar="ZAMAN",
+                   help="şuraya kadar tut (örn. 0:35 ya da 35)")
+    g.add_argument("--formats", default="vertical", metavar="LİSTE",
+                   help="çıktı formatları (virgülle): vertical,square,horizontal "
+                        "(varsayılan: vertical)")
+
+    g = p.add_argument_group("klip seçimi (Kick otomatik modu)")
     g.add_argument("-n", "--clips", type=int, default=5, help="üretilecek klip sayısı (varsayılan: 5)")
     g.add_argument("-d", "--duration", type=float, default=45.0, help="klip süresi, saniye (varsayılan: 45)")
     g.add_argument("--pre", type=float, default=0.35, metavar="ORAN",
@@ -105,16 +118,36 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    first = args.inputs[0]
 
+    # Girdi yerel video dosyası mı? -> klip editörü modu (kendi klibini hazırla)
+    from clipmaker.editor import is_video_file, parse_timestamp, run_editor
+    if not args.list and not args.debug_chat and is_video_file(first):
+        formats = tuple(f.strip().lower() for f in (args.formats or "vertical").split(",") if f.strip())
+        editor_settings = Settings(
+            out_dir=args.out,
+            trim_start=parse_timestamp(args.trim_start),
+            trim_end=parse_timestamp(args.trim_end),
+            formats=formats,
+            title=args.title,
+            captions=not args.no_captions,
+            caption_model=args.whisper_model or args.caption_model,
+            language=args.lang,
+            normalize_audio=not args.no_normalize,
+        )
+        from pathlib import Path
+        return run_editor([Path(p) for p in args.inputs], editor_settings)
+
+    # Aksi halde: Kick VOD/kanal bağlantısı -> otomatik klip modu
     from clipmaker.pipeline import diagnose_chat, list_channel_vods, run_pipeline
 
     if args.list:
-        return list_channel_vods(args.url)
+        return list_channel_vods(first)
     if args.debug_chat:
-        return diagnose_chat(args.url)
+        return diagnose_chat(first)
 
     settings = Settings(
-        url=args.url,
+        url=first,
         m3u8_override=args.m3u8,
         pick_index=args.pick,
         num_clips=args.clips,

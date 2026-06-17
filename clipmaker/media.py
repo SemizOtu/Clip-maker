@@ -186,18 +186,22 @@ def find_font() -> Optional[str]:
     return None
 
 
-def make_vertical(clip_path: Path, out_path: Path, title: Optional[str] = None) -> Path:
-    """Yatay klibi 1080x1920 dikey formata çevirir (bulanık arka planlı).
+def make_reframe(clip_path: Path, out_path: Path, target_w: int, target_h: int,
+                 title: Optional[str] = None) -> Path:
+    """Klibi hedef en-boy oranına çevirir: bulanık arka plan + ortalanmış video.
 
-    TikTok / Instagram Reels / YouTube Shorts için hazır çıktı üretir.
+    Kaynak hangi orana sahip olursa olsun tamamı kareye sığdırılır (kırpılmaz);
+    boşluklar kaynağın bulanık/kararmış kopyasıyla doldurulur. 9:16 dikey, 1:1
+    kare, 16:9 yatay — hepsi aynı fonksiyonla üretilir.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    W, H = int(target_w), int(target_h)
     base = (
-        "[0:v]split=2[bg][fg];"
-        "[bg]scale=1080:1920:force_original_aspect_ratio=increase,"
-        "crop=1080:1920,gblur=sigma=25,eq=brightness=-0.08[bgb];"
-        "[fg]scale=1080:-2[fgs];"
-        "[bgb][fgs]overlay=(W-w)/2:(H-h)/2"
+        f"[0:v]split=2[bg][fg];"
+        f"[bg]scale={W}:{H}:force_original_aspect_ratio=increase,"
+        f"crop={W}:{H},gblur=sigma=25,eq=brightness=-0.08[bgb];"
+        f"[fg]scale={W}:{H}:force_original_aspect_ratio=decrease[fgs];"
+        f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2"
     )
 
     def _run(filters: str) -> None:
@@ -214,10 +218,11 @@ def make_vertical(clip_path: Path, out_path: Path, title: Optional[str] = None) 
         # Windows'ta font yolundaki 'C:' iki noktası filtre ayıracı sanılır;
         # ters bölüleri '/' yapıp iki noktayı kaçışlamak gerekir.
         font_arg = escape_font_path(font)
+        fontsize = max(28, round(W * 0.052))
         drawtext = (
             f",drawtext=fontfile={font_arg}:text='{_drawtext_escape(title)}'"
-            ":fontsize=58:fontcolor=white:borderw=4:bordercolor=black@0.7"
-            ":x=(w-text_w)/2:y=150"
+            f":fontsize={fontsize}:fontcolor=white:borderw=4:bordercolor=black@0.7"
+            f":x=(w-text_w)/2:y={round(H * 0.07)}"
         )
         try:
             _run(base + drawtext)
@@ -226,6 +231,11 @@ def make_vertical(clip_path: Path, out_path: Path, title: Optional[str] = None) 
             pass  # başlık bindirme başarısız -> başlıksız üret (klip kaybolmasın)
     _run(base)
     return out_path
+
+
+def make_vertical(clip_path: Path, out_path: Path, title: Optional[str] = None) -> Path:
+    """9:16 dikey (1080x1920) — TikTok / Reels / Shorts için. make_reframe sarmalayıcısı."""
+    return make_reframe(clip_path, out_path, 1080, 1920, title=title)
 
 
 def make_thumbnail(clip_path: Path, out_path: Path, at_s: float = 1.0) -> Path:
