@@ -28,10 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("inputs", nargs="+", metavar="GİRDİ",
+    p.add_argument("inputs", nargs="*", metavar="GİRDİ",
                    help="bir video dosyası (kendi klibin) ya da Kick VOD/kanal bağlantısı "
-                        "(montaj için birden çok dosya verilebilir)")
+                        "(montaj için birden çok dosya verilebilir). Boş bırakılırsa uygulama açılır.")
     p.add_argument("--version", action="version", version=f"clipmaker {__version__}")
+    p.add_argument("--gui", action="store_true", help="basit masaüstü uygulamasını aç")
 
     g = p.add_argument_group("klip editörü (kendi klibini hazırla)")
     g.add_argument("--trim-start", default=None, metavar="ZAMAN",
@@ -118,6 +119,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    # Argümansız ya da --gui: basit masaüstü uygulamasını aç
+    if args.gui or not args.inputs:
+        from clipmaker.gui import launch
+        return launch()
+
     first = args.inputs[0]
 
     # Girdi yerel video dosyası mı? -> klip editörü modu (kendi klibini hazırla)

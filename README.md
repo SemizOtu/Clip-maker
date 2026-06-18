@@ -25,7 +25,20 @@ python -m clipmaker https://kick.com/kanaladi
 
 ---
 
-## Klip editörü — kullanım
+## Uygulama (CMD'siz kullanım)
+
+CMD yazmak istemiyorsan basit bir masaüstü uygulaması var:
+
+- **Windows:** depo klasöründeki **`Klip Hazirla.bat`** dosyasına çift tıkla.
+- **Her yerde:** `python -m clipmaker` (argümansız) ya da `python -m clipmaker --gui`.
+
+Açılan pencerede: **Seç...** ile videonu seç → formatı/altyazıyı/kırpmayı ayarla →
+**🚀 Hazırla**. İlerleme pencerede görünür; bitince **📂 Çıktı klasörünü aç**.
+
+> Uygulama da `faster-whisper` ile altyazı üretir (`pip install faster-whisper`).
+> Kurulu değilse altyazısız üretir.
+
+## Klip editörü — komut satırı kullanımı
 
 ```bash
 # En basit: klibi 9:16 dikey + karaoke altyazılı yap
@@ -328,6 +341,7 @@ ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
 | `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız aday seçimi |
 | `clipmaker/transcribe.py` | aday anların konuşmasını Whisper ile yazıya döker |
 | `clipmaker/ai_judge.py` | yapay zeka jürisi (Claude / Ollama) — içeriği puanlar |
+| `clipmaker/gui.py` | basit masaüstü uygulaması (Tkinter) — CMD'siz kullanım |
 | `clipmaker/editor.py` | klip editörü: kendi klibini sosyal medyaya hazırlar (ana kullanım) |
 | `clipmaker/captions.py` | kelime kelime karaoke altyazı (ASS) üretimi |
 | `clipmaker/media.py` | ffmpeg: yeniden çerçeveleme (9:16/1:1/16:9), kesim, altyazı gömme, loudnorm |
