@@ -1,13 +1,10 @@
-__pycache__/
-*.pyc
-*.egg-info/
-.venv/
-venv/
+# işletim sistemi / editör
+.DS_Store
+Thumbs.db
 
-# Üretilen çıktılar
+# üretilen çıktılar / kullanıcı klipleri (yanlışlıkla commit edilmesin)
 output/
 *.mp4
-*.wav
-*.srt
-*.jpg
-!docs/**/*.jpg
+*.mov
+*.mkv
+*.webm

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎬 Reels Klip Düzenleyici</title>
+<meta name="description" content="Yayıncı kliplerini Instagram Reels / TikTok / Shorts için 9:16 dikey formata dönüştür — tamamen tarayıcıda, yükleme yok.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<script src="coi-serviceworker.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>🎬 Reels Klip Düzenleyici</h1>
+  <p class="sub">Klibini seç → kamera &amp; oyun bölgelerini işaretle → paylaşıma hazır <b>9:16 dikey video</b> indir.
+  Her şey tarayıcında işlenir, video hiçbir yere yüklenmez.</p>
+  <div id="engineStatus" class="engine">⏳ Video motoru bekleniyor…</div>
+</header>
+
+<main>
+
+  <!-- ADIM 1: Dosya seçimi -->
+  <section id="dropSection" class="card">
+    <h2>1️⃣ Klipleri ekle</h2>
+    <div id="dropZone" class="dropzone" tabindex="0">
+      <div class="dz-icon">📂</div>
+      <div><b>Klipleri buraya sürükle</b> ya da tıklayıp seç</div>
+      <div class="dz-hint">MP4 / MOV / MKV / WebM — birden çok dosya seçebilirsin (önerilen: dosya başına &lt; 500 MB)</div>
+      <input type="file" id="fileInput" accept="video/*,.mkv" multiple hidden>
+    </div>
+    <ul id="queue" class="queue"></ul>
+    <div id="batchBar" class="batchbar hidden">
+      <button id="applyAllBtn" class="btn ghost" title="Seçili klibin düzenini listedeki tüm kliplere kopyalar">📋 Bu düzeni tüm kliplere uygula</button>
+      <button id="renderAllBtn" class="btn primary">🚀 Tümünü hazırla</button>
+    </div>
+  </section>
+
+  <!-- ADIM 2: Düzen -->
+  <section id="editorSection" class="card hidden">
+    <h2>2️⃣ Düzeni ayarla — <span id="editName"></span></h2>
+
+    <div class="mode-row" role="radiogroup" aria-label="Düzen modu">
+      <label class="mode-opt">
+        <input type="radio" name="mode" value="gamecam" checked>
+        <span>🎮 Oyun + Kamera<small>üstte kamera, altta oyun</small></span>
+      </label>
+      <label class="mode-opt">
+        <input type="radio" name="mode" value="camonly">
+        <span>📷 Sadece Kamera<small>kamera tam ortada, ekranı doldurur</small></span>
+      </label>
+    </div>
+
+    <div class="editor-flex">
+      <div class="stage-wrap">
+        <div id="stage" class="stage">
+          <video id="video" playsinline muted></video>
+          <div id="camBox" class="selbox cam"><span class="selbox-label">📷 Kamera</span><span class="handle"></span></div>
+          <div id="gameBox" class="selbox game"><span class="selbox-label">🎮 Oyun</span><span class="handle"></span></div>
+        </div>
+        <div class="transport">
+          <button id="playBtn" class="btn tiny">▶</button>
+          <input type="range" id="seek" min="0" max="100" step="0.01" value="0">
+          <span id="timeLabel" class="time">0:00</span>
+        </div>
+        <p class="stage-hint">Kutuları sürükle, sağ alt köşeden boyutlandır. Kutunun içinde kalan bölge videoda o alanı dolduracak.</p>
+      </div>
+
+      <div class="side">
+        <div class="preview-wrap">
+          <div class="preview-title">Önizleme (9:16)</div>
+          <canvas id="preview" width="270" height="480"></canvas>
+        </div>
+
+        <div class="controls">
+          <div id="ratioCtl" class="ctl">
+            <label>Kamera alanı yüksekliği: <b id="ratioVal">35%</b></label>
+            <input type="range" id="camRatio" min="20" max="55" step="1" value="35">
+          </div>
+
+          <div class="ctl trim">
+            <label>✂️ Kırpma (isteğe bağlı)</label>
+            <div class="trim-row">
+              <input type="text" id="trimStart" placeholder="baş: 0:00" size="7">
+              <button id="setStartBtn" class="btn tiny ghost" title="Videodaki mevcut anı başlangıç yap">⇤ şu an</button>
+              <input type="text" id="trimEnd" placeholder="son: —" size="7">
+              <button id="setEndBtn" class="btn tiny ghost" title="Videodaki mevcut anı bitiş yap">şu an ⇥</button>
+            </div>
+          </div>
+
+          <div class="ctl inline">
+            <label><input type="checkbox" id="loudnorm" checked> 🔊 Ses seviyesini normalize et (−16 LUFS)</label>
+          </div>
+
+          <div class="ctl inline two">
+            <label>Çözünürlük
+              <select id="res">
+                <option value="1080" selected>1080×1920 (tam kalite)</option>
+                <option value="720">720×1280 (daha hızlı)</option>
+              </select>
+            </label>
+            <label>Hız / kalite
+              <select id="speed">
+                <option value="fast" selected>⚡ Hızlı</option>
+                <option value="quality">✨ Daha kaliteli (yavaş)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <button id="renderBtn" class="btn primary big">🚀 Bu klibi hazırla</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADIM 3: Sonuçlar -->
+  <section id="resultSection" class="card hidden">
+    <h2>3️⃣ Hazır klipler</h2>
+    <ul id="results" class="results"></ul>
+  </section>
+
+</main>
+
+<footer>
+  <p>💡 İpucu: bir klibin düzenini ayarladıktan sonra <b>“Bu düzeni tüm kliplere uygula”</b> ile hepsine kopyalayabilirsin.
+  Ayarlar tarayıcında hatırlanır. Çıktılar 1080×1920 H.264 + AAC MP4'tür — Instagram Reels, TikTok ve YouTube Shorts ile uyumludur.</p>
+</footer>
+
+<script src="vendor/ffmpeg/ffmpeg.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
