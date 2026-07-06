@@ -38,14 +38,15 @@ https://semizotu.github.io/Clip-maker/
 
 ### GitHub Pages'i etkinleştirme (tek seferlik, ~30 saniye)
 
-Depo sahibi olarak:
+GitHub bu ayarı yalnızca depo sahibinin yapmasına izin verir:
 
-1. GitHub'da depo sayfasında **Settings → Pages**'e git.
+1. GitHub'da **Settings → Pages**'e git:
+   <https://github.com/SemizOtu/Clip-maker/settings/pages>
 2. **Source: Deploy from a branch** seç.
-3. **Branch:** bu kodun bulunduğu dalı seç (ör. varsayılan dal), klasör olarak **/ (root)** bırak, **Save**.
-4. 1–2 dakika içinde site `https://semizotu.github.io/Clip-maker/` adresinde yayına girer.
-
-> Not: Ücretsiz planda GitHub Pages yalnızca **herkese açık (public)** depolarda çalışır.
+3. **Branch:** bu kodun bulunduğu dalı seç — `claude/clip-layout-social-media-19i1sx`
+   (ya da bu dalı birleştirdiysen varsayılan dalı). Klasörü **/ (root)** bırak, **Save**.
+4. 1–2 dakika içinde site <https://semizotu.github.io/Clip-maker/> adresinde yayına girer.
+   Bundan sonra seçtiğin dala gelen her güncelleme siteye otomatik yansır.
 
 ## Bilgisayarında çalıştırma (internetsiz)
 
