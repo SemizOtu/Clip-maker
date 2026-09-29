@@ -2,3 +2,6 @@
 Thumbs.db
 node_modules/
 .vercel
+.env*
+# Yerelde denerken fotoğrafların ve içeriğin saklandığı klasör
+.yerel-depo/

@@ -1,0 +1,6 @@
+# Vercel'e yüklenmeyecekler
+.yerel-depo
+.claude
+.git
+node_modules
+*.log

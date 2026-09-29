@@ -1,70 +1,93 @@
-# 💌 Sana Özel
+# 💌 Deniz & Sena
 
-Sevgiline hazırlanmış, fotoğraflı, kalpli ve çiçekli romantik bir web sitesi.
-Kalp şeklinde sayfa geçişleri, açılan bir zarf, uçuşan kalpler ve gül yaprakları,
-birlikte geçen zamanı sayan bir sayaç, uzun bir mektup, çevrilen kartlar, kazı kazan,
-aşk kuponları ve “Hayır” butonu kaçan eğlenceli bir final içerir.
+Deniz’den Sena’ya, sevgiyle hazırlanmış romantik bir web sitesi.
+Mühürlü bir zarfla açılır; kalpli sayfa geçişleri, uçuşan gül yaprakları,
+canlı bir sayaç, fotoğraflar, mektuplar, bir sınav, aşk kuponları ve
+kalp şeklinde havai fişeklerle biten bir final içerir.
 
 ## 🌐 Adresler
 
 | | Adres |
 |---|---|
-| Sevgiline göndereceğin adres | **https://semizotu.github.io/Clip-maker/** |
-| Düzenleme modu (sadece sen) | https://semizotu.github.io/Clip-maker/?duzenle |
+| Sena’ya göndereceğin adres | **https://deniz-ve-sena.vercel.app** |
+| Düzenleme modu (sadece sen, şifreli) | https://deniz-ve-sena.vercel.app/duzenle |
 
-> Düzenleme adresini sevgiline gönderme; o sadece senin için. Göndereceğin adres `?duzenle` olmadan olan.
+## ✨ İlk kurulum (bir kereye mahsus)
 
-### Daha güzel bir adres istersen (isteğe bağlı)
+1. **https://deniz-ve-sena.vercel.app/duzenle** adresini aç.
+2. Kendine bir **düzenleme şifresi** belirle (en az 6 karakter). Bu şifreyi sadece sen bileceksin.
+3. Açılan “Yapılacaklar” listesini takip et: tarihi ayarla, fotoğrafları yükle, şarkını ekle.
+4. Hazır olunca adresi (sonunda `/duzenle` olmadan) Sena’ya gönder. Ayarlar’daki “WhatsApp’ta gönder” butonu hazır bir mesaj açar.
 
-- **Vercel (ör. `bizim-hikayemiz.vercel.app`):** [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → `Clip-maker` → Project Name: `bizim-hikayemiz` → **Deploy**. Ayar gerekmez; düzenleme modunda kaydettiğin her değişiklik Vercel’de de otomatik yayınlanır.
-- **GitHub adresini değiştirmek:** Depo adını değiştirirsen (Settings → General → Repository name, ör. `sevgilim`) adres `https://semizotu.github.io/sevgilim/` olur. Bu durumda `js/config.js` içindeki `repo` satırını ve `index.html` içindeki paylaşım görseli adresini de güncelle.
+## ✏️ Düzenleme modu
 
-## ✏️ Fotoğraf ve yazıları değiştirme
+- **Yazılar:** Kesik çizgili her yazıya dokunup değiştir. Birkaç saniye içinde kendiliğinden kaydedilir (istersen 💾 Kaydet’e de basabilirsin).
+- **Fotoğraflar:** “📷 Fotoğraf seç” → fotoğrafı seç → kırp → “Kırp ve ekle”. Fotoğraflar otomatik küçültülür (en fazla 2000 px) ve anında kaydedilir.
+- **Toplu fotoğraf:** “Anılarımız” bölümündeki “📷 Fotoğraf ekle” ile birden fazla fotoğrafı tek seferde yükleyebilirsin; önce boş kutular dolar, sonra yenileri eklenir.
+- **Listeler:** “+ Ekle” butonları; ↑ ↓ ile sırala, ✕ ile sil.
+- **Bölümler:** Her bölümün üstündeki anahtarla bölümü gizleyebilirsin; Sena gizli bölümleri görmez.
+- **Sınav:** Her şıkkın solundaki yuvarlağa dokunarak doğru cevabı seç.
+- **Hayaller:** Soldaki yuvarlağa dokunarak “gerçekleşti” olarak işaretle.
+- **⚙️ Ayarlar:** İsimler, birlikteliğin başladığı an, Sena’nın doğum günü, şarkınız, bölüm adları, özel kilit, bildirimler, kaçan “Hayır” butonunun yazıları, şifre değiştirme.
+- **👁 Önizle:** Sena’nın göreceği hâli gösterir (önizlemedeki tıklamalar Gelen Kutusu’na düşmez).
 
-Adresin sonuna **`?duzenle`** ekleyince düzenleme modu açılır:
+## 💌 Gelen kutusu
 
-1. **Yazılar:** Kesik çizgili her yazıya dokun ve değiştir. Bitince alttaki **💾 Kaydet**’e bas.
-2. **Fotoğraflar:** Fotoğraf alanındaki **📷 Fotoğraf seç** butonuna dokun → fotoğrafını seç → kırp → **Kırp ve ekle**. Fotoğraf kendiliğinden kaydedilir.
-3. **Ekle / sırala / sil:** Listelerin altındaki **+ Ekle** butonları (yeni anı, fotoğraf, sebep, kupon), **↑ ↓** ile sıralama, **✕** ile silme.
-4. **⚙️ Ayarlar:** Birlikteliğinizin başladığı tarih (sayaç), zarf açılınca çalacak şarkınız (MP3), WhatsApp numaran (kupon mesajları için), bölüm adları ve kaçan “Hayır” butonunun yazıları.
-5. **👁 Önizle:** Sevgilinin göreceği hâli gösterir.
-
-Kaydettiğin her şey 1–2 dakika içinde siteye yansır.
-
-## 🔑 Bir kereye mahsus kurulum: GitHub anahtarı
-
-Düzenleme modunun değişiklikleri siteye kaydedebilmesi için GitHub’dan bir anahtar (token) gerekir:
-
-1. [Anahtar oluşturma sayfasını aç](https://github.com/settings/personal-access-tokens/new?name=Ask+Sitesi+Duzenleme&expires_in=none&contents=write&metadata=read) ve GitHub hesabınla giriş yap.
-2. **Expiration**: “No expiration” ya da uzun bir süre seç.
-3. **Repository access** → **Only select repositories** → **Clip-maker** deposunu seç.
-4. **Permissions** kısmında **Contents** izninin **Read and write** olduğundan emin ol.
-5. **Generate token**’a bas, `github_pat_…` ile başlayan anahtarı kopyala.
-6. Düzenleme modunda **⚙️ Ayarlar → GitHub bağlantısı** kutusuna yapıştırıp **Kaydet ve test et**’e bas.
-
-Anahtar yalnızca kendi tarayıcında saklanır; siteye ya da depoya yazılmaz.
+Sena bir aşk kuponunu kullandığında, “zamanı gelince aç” mektuplarından birini açtığında,
+sınavı bitirdiğinde, kazı kazanı kazıdığında, sonsuza dek sorusuna “Evet” dediğinde
+ya da sana bir not / yeni bir hayal yazdığında düzenleme modundaki **💌 Gelen** kutusunda görürsün.
+Ayarlar’dan WhatsApp numaranı yazarsan, kupon kullanıldığında sana WhatsApp mesajı da açılır.
+Sen giriş yapmışken sitede yaptığın denemeler “senin denemen” etiketiyle ayrı görünür.
 
 ## 📖 Bölümler
 
 | | Bölüm | İçinde neler var |
 |---|---|---|
-| — | Kapak | Kalp mühürlü zarf; dokununca açılır, varsa şarkınız başlar |
-| I | Sen & Ben | Harf harf açılan başlık, dönen “Sen benim …” sözleri, kalp çerçeveli fotoğraf, canlı sayaç |
-| II | Hikayemiz | Tarihli, fotoğraflı zaman tüneli |
-| III | Anılarımız | Bantlı polaroid duvarı; dokununca büyüyen fotoğraflar |
-| IV | Sana Mektubum | Mühürlü, kelime kelime beliren uzun mektup |
-| V | Neden Sen? | Çevrilen sebep kartları + “Seni ne kadar seviyorum?” ölçeri |
-| VI | Sürprizler | Kazı kazan + WhatsApp’tan haber veren aşk kuponları |
-| VII | Sonsuza Dek | Gece sahnesi, kaçan “Hayır” butonu ve konfetili “Seni Seviyorum” |
+| — | Kapak | Kadife zemin, mühürlü zarf; açılınca şarkınız başlar. İstersen soru-cevaplı özel kilit |
+| I | Sen & Ben | Harf harf açılan isimler, “Sen benim …”, kalp çerçeveli fotoğraf, canlı sayaç, bir sonraki ay dönümü, “Sayılarla biz”, her gün değişen “Bugünün notu” |
+| II | Hikâyemiz | Tarihli, fotoğraflı zaman tüneli |
+| III | Anılarımız | Bantlı polaroid duvarı, büyüyen fotoğraflar, müzikli slayt gösterisi |
+| IV | Sana Mektubum | Kelime kelime beliren mektup + “Zamanı gelince aç” mektupları |
+| V | Neden Sen? | Çevrilen sebep kartları, rastgele sebep, “Seni ne kadar seviyorum?” ölçeri |
+| VI | Beni Ne Kadar Tanıyorsun? | Kalpli puanlı küçük sınav |
+| VII | Hayallerimiz | Birlikte yapılacaklar listesi; Sena da yeni hayal önerebilir |
+| VIII | Sürprizler | Kazı kazan + aşk kuponları |
+| IX | Sonsuza Dek | Gece sahnesi, kaçan “Hayır”, kalpli havai fişekler ve Sena’dan sana not |
 
-## 🔒 Gizlilik
+Ay dönümlerinde, 100’ün katı olan günlerde, Sena’nın doğum gününde, Sevgililer Günü’nde
+ve yılbaşında site kendiliğinden kutlama yapar.
 
-- Site arama motorlarına kapalıdır (`noindex`), ama depo herkese açık olduğu için eklenen fotoğraflar adresini bilen herkes tarafından açılabilir. Paylaşmak istemediğin fotoğrafları ekleme.
-- GitHub anahtarın sadece senin tarayıcında durur. Başka bir cihazdan düzenlemek için orada da bir kere girmen gerekir; işin bitince **Ayarlar → Anahtarı bu cihazdan sil** diyebilirsin.
+## 🔒 Gizlilik ve güvenlik
+
+- Fotoğraflar ve yazılar **özel (private) Vercel Blob** deposunda durur; depoya doğrudan erişilemez, sadece site üzerinden gösterilir. Artık fotoğraflar herkese açık GitHub deposuna yüklenmiyor.
+- Site arama motorlarına kapalıdır (`noindex`).
+- İstersen **Ayarlar → Özel kilit** ile siteyi sadece doğru cevabı bilen birinin açabileceği bir soruyla kilitleyebilirsin; o zaman fotoğraflar da kilitlenir.
+- Düzenleme şifren depoda sadece özet (scrypt) olarak saklanır.
+
+### Şifreni unutursan
+
+Vercel → projen → **Storage** → Blob deposu → **Browser** kısmında `ozel/giris.json` dosyasını sil.
+Bir dakika sonra `/duzenle` adresi tekrar “şifre belirle” ekranıyla açılır. (İçerik ve fotoğraflar silinmez.)
 
 ## 🛠 Teknik notlar
 
-- Derleme gerektirmeyen düz HTML/CSS/JavaScript. Tüm yazılar ve fotoğraf listesi `content.json` içinde; fotoğraflar `foto/`, şarkı `muzik/` klasörüne kaydedilir.
-- Yazı tipleri (Great Vibes, Cormorant Garamond, Caveat, Quicksand) `fonts/` içinde, fotoğraf kırpma aracı [Cropper.js](https://github.com/fengyuanchen/cropperjs) 1.6.2 (MIT) `vendor/` içinde.
-- Düzenleme modu değişiklikleri `claude/ecstatic-tesla-c0znbc` dalına (deponun varsayılan dalı) kaydeder ve GitHub Pages’in yayınladığı `claude/clip-layout-social-media-19i1sx` dalını da aynı sürüme eşitler. Elle `git push` yaparsan iki dala da gönder ya da **Settings → Pages** bölümünden kaynağı varsayılan dal olarak değiştir.
-- Bilgisayarında denemek için: `python3 -m http.server` → http://localhost:8000
+- Arayüz derleme gerektirmeyen düz HTML/CSS/JavaScript (`public/`), sunucu tarafı Vercel Functions (`api/`, Node.js).
+- İçerik `ozel/icerik.json`, fotoğraf ve şarkılar `medya/` altında Vercel Blob’da saklanır. İlk hâl `lib/defaults.js` içindedir.
+- Fotoğraflar tarayıcıda küçültülüp Blob’a doğrudan yüklenir (`@vercel/blob/client`, `public/vendor/blob-istemcisi.min.js` — `npm run blob-istemcisi` ile üretilir).
+- Yazı tipleri (Great Vibes, Cormorant Garamond, Caveat, Quicksand) `public/fonts/` içinde, fotoğraf kırpma aracı [Cropper.js](https://github.com/fengyuanchen/cropperjs) 1.6.2 (MIT).
+
+### Bilgisayarında denemek
+
+```bash
+npm install
+npm run dev
+```
+
+Sonra http://localhost:5173 (site) ve http://localhost:5173/duzenle (düzenleme).
+Yerelde her şey `.yerel-depo/` klasörüne kaydedilir; Vercel’deki siteye dokunulmaz.
+
+### Yayınlamak
+
+```bash
+npx vercel deploy --prod
+```

@@ -3,30 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sana Özel ❤</title>
+<title>Sena’ya ❤</title>
 <meta name="description" content="Bunu sadece senin için hazırladım. Aç ve gör ❤">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#f9c9d6">
+<meta name="theme-color" content="#2a0716">
+<meta name="color-scheme" content="light">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Sana özel bir mektup var 💌">
+<meta property="og:site_name" content="Deniz & Sena">
+<meta property="og:title" content="Sena’ya özel bir mektup var 💌">
 <meta property="og:description" content="Bunu sadece senin için hazırladım. Aç ve gör ❤">
-<meta property="og:image" content="https://semizotu.github.io/Clip-maker/img/paylasim.jpg">
+<meta property="og:image" content="https://deniz-ve-sena.vercel.app/img/paylasim.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Mühürlü bir mektup: Sena’ya">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<link rel="manifest" href="site.webmanifest">
-<link rel="preload" href="fonts/great-vibes-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/cormorant-garamond-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/fonts.css">
-<link rel="stylesheet" href="css/style.css">
-<script type="module" src="js/app.js"></script>
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/fonts/great-vibes-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/cormorant-garamond-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/quicksand-normal-400-700-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/site.css">
+<script type="module" src="/js/app.js"></script>
 </head>
-<body class="is-loading">
+<body class="is-loading at-intro">
 
-<div id="night" class="night" aria-hidden="true"><div class="stars"></div></div>
+<div class="scene" aria-hidden="true">
+  <div class="scene-day"></div>
+  <div class="scene-velvet"></div>
+  <div class="scene-night"><div class="moon"></div><div class="stars"></div></div>
+</div>
 <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
 <div id="loader" class="loader" aria-hidden="true">
@@ -38,11 +46,13 @@
     <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <svg class="note" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5a3 3 0 1 1-2-2.83V5.5l12-2.5v12a3 3 0 1 1-2-2.83V6.9l-8 1.67v9.93Z"/></svg>
   </button>
+  <p id="topbar-title" class="topbar-title" aria-live="polite"></p>
   <button id="menu-btn" class="pill menu-btn" type="button" aria-label="Bölümler" aria-expanded="false" aria-controls="menu">
     <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 96C50 96 2 66 2 34C2 15 15 3 30 3C40 3 47 9 50 17C53 9 60 3 70 3C85 3 98 15 98 34C98 66 50 96 50 96Z"/></svg>
     <span>Bölümler</span>
   </button>
 </header>
+<div id="progress" class="progress" aria-hidden="true"><i></i></div>
 
 <main id="chapters"></main>
 
@@ -55,8 +65,8 @@
     <defs>
       <radialGradient id="wipe-grad" cx="50%" cy="42%" r="62%">
         <stop offset="0" stop-color="#ff9fb8"/>
-        <stop offset=".55" stop-color="#ec3d73"/>
-        <stop offset="1" stop-color="#a0124a"/>
+        <stop offset=".55" stop-color="#e0245e"/>
+        <stop offset="1" stop-color="#8d0f3a"/>
       </radialGradient>
     </defs>
     <path fill="url(#wipe-grad)" d="M50 96C50 96 2 66 2 34C2 15 15 3 30 3C40 3 47 9 50 17C53 9 60 3 70 3C85 3 98 15 98 34C98 66 50 96 50 96Z"/>
@@ -79,12 +89,24 @@
   <p class="lb-count"></p>
 </div>
 
+<div id="slideshow" class="slideshow" role="dialog" aria-modal="true" aria-label="Slayt gösterisi" hidden>
+  <div class="ss-stage"></div>
+  <p class="ss-cap"></p>
+  <div class="ss-bar"><i></i></div>
+  <div class="ss-tools">
+    <button class="lb-btn ss-prev" type="button" aria-label="Önceki">‹</button>
+    <button class="lb-btn ss-play" type="button" aria-label="Duraklat">❚❚</button>
+    <button class="lb-btn ss-next" type="button" aria-label="Sonraki">›</button>
+  </div>
+  <button class="lb-btn ss-close" type="button" aria-label="Kapat">✕</button>
+</div>
+
 <canvas id="fx-canvas" aria-hidden="true"></canvas>
 <audio id="music" loop preload="none"></audio>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <noscript>
-  <div class="noscript">Bu sayfayı görebilmek için tarayıcında JavaScript'in açık olması gerekiyor ❤</div>
+  <div class="noscript">Bu sayfayı görebilmek için tarayıcında JavaScript’in açık olması gerekiyor ❤</div>
 </noscript>
 </body>
 </html>

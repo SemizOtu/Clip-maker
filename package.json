@@ -1,0 +1,17 @@
+{
+  "name": "deniz-ve-sena",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Sena'ya özel romantik site — Deniz'den, sevgiyle.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/gelistir.mjs",
+    "blob-istemcisi": "npx --yes esbuild@0.28.2 scripts/blob-istemcisi.js --bundle --format=esm --platform=browser --minify --target=es2020 --legal-comments=none \"--define:process.env={}\" \"--banner:js=/*! @vercel/blob istemcisi (Apache-2.0, https://github.com/vercel/storage) ve bağımlılıkları (MIT) — npm run blob-istemcisi ile üretildi */\" --outfile=public/vendor/blob-istemcisi.min.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
