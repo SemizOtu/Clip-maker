@@ -1,94 +1,65 @@
-# 🎬 Reels Klip Düzenleyici
+# 💌 Sana Özel
 
-Elindeki hazır yayın kliplerini **Instagram Reels / TikTok / YouTube Shorts** için
-paylaşıma hazır **9:16 dikey videolara** dönüştüren, tamamen **tarayıcıda çalışan** araç.
+Sevgiline hazırlanmış, fotoğraflı, kalpli ve çiçekli romantik bir web sitesi.
+Kalp şeklinde sayfa geçişleri, açılan bir zarf, uçuşan kalpler ve gül yaprakları,
+birlikte geçen zamanı sayan bir sayaç, uzun bir mektup, çevrilen kartlar, kazı kazan,
+aşk kuponları ve “Hayır” butonu kaçan eğlenceli bir final içerir.
 
-- 🎮 **Oyun + Kamera modu** — kamera (facecam) üstte, oyun görüntüsü altta
-- 📷 **Sadece Kamera modu** — seçtiğin kamera bölgesi ekranın tamamını doldurur
-- 📱 Çıktı: **1080×1920, H.264 + AAC MP4, 30 fps** — Reels/TikTok/Shorts ile birebir uyumlu
-- 🔊 Ses seviyesi otomatik normalize edilir (−16 LUFS; kapatılabilir)
-- ✂️ İsteğe bağlı baştan/sondan kırpma
-- 📋 Birden çok klibi sıraya al, düzeni **tek tıkla hepsine uygula**, arka arkaya işle
-- 💾 Kamera/oyun bölgesi düzenin tarayıcıda **hatırlanır** — yayıncının kamerası hep aynı
-  yerdeyse bir kez ayarlaman yeterli
-- 🔒 **Hiçbir video hiçbir yere yüklenmez** — tüm işleme senin bilgisayarında,
-  tarayıcının içinde yapılır (ffmpeg.wasm)
+## 🌐 Adresler
 
-## Kullanım (GitHub Pages)
+| | Adres |
+|---|---|
+| Sevgiline göndereceğin adres | **https://semizotu.github.io/Clip-maker/** |
+| Düzenleme modu (sadece sen) | https://semizotu.github.io/Clip-maker/?duzenle |
 
-Site yayında olduğunda adres şudur:
+> Düzenleme adresini sevgiline gönderme; o sadece senin için. Göndereceğin adres `?duzenle` olmadan olan.
 
-```
-https://semizotu.github.io/Clip-maker/
-```
+## ✏️ Fotoğraf ve yazıları değiştirme
 
-1. Sayfayı aç, kliplerini sürükle-bırak.
-2. **🎮 Oyun + Kamera** ya da **📷 Sadece Kamera** modunu seç.
-3. Video üzerindeki renkli kutuları sürükleyip boyutlandır:
-   - 🟩 **Kamera** kutusunu facecam'in üzerine oturt,
-   - 🟧 **Oyun** kutusuyla oyunun hangi bölümünün görüneceğini seç.
-   - Kutu oranları çıktı düzenine kilitlidir: **ne görüyorsan onu alırsın.**
-4. Sağdaki 9:16 önizlemede sonucu canlı gör, **🚀 Hazırla**'ya bas, MP4'ü indir.
-5. Birden çok klip için: ilk klibin düzenini ayarla → **📋 Bu düzeni tüm kliplere uygula**
-   → **🚀 Tümünü hazırla**.
+Adresin sonuna **`?duzenle`** ekleyince düzenleme modu açılır:
 
-> İlk kullanımda video motoru (~31 MB) bir kez indirilir; sonrası önbellekten gelir.
-> Chrome / Edge / Firefox önerilir. Tarayıcı desteklerse çok çekirdekli (hızlı) mod
-> otomatik etkinleşir; desteklemezse tek çekirdekle yine çalışır.
+1. **Yazılar:** Kesik çizgili her yazıya dokun ve değiştir. Bitince alttaki **💾 Kaydet**’e bas.
+2. **Fotoğraflar:** Fotoğraf alanındaki **📷 Fotoğraf seç** butonuna dokun → fotoğrafını seç → kırp → **Kırp ve ekle**. Fotoğraf kendiliğinden kaydedilir.
+3. **Ekle / sırala / sil:** Listelerin altındaki **+ Ekle** butonları (yeni anı, fotoğraf, sebep, kupon), **↑ ↓** ile sıralama, **✕** ile silme.
+4. **⚙️ Ayarlar:** Birlikteliğinizin başladığı tarih (sayaç), zarf açılınca çalacak şarkınız (MP3), WhatsApp numaran (kupon mesajları için), bölüm adları ve kaçan “Hayır” butonunun yazıları.
+5. **👁 Önizle:** Sevgilinin göreceği hâli gösterir.
 
-### GitHub Pages'i etkinleştirme (tek seferlik, ~30 saniye)
+Kaydettiğin her şey 1–2 dakika içinde siteye yansır.
 
-GitHub bu ayarı yalnızca depo sahibinin yapmasına izin verir:
+## 🔑 Bir kereye mahsus kurulum: GitHub anahtarı
 
-1. GitHub'da **Settings → Pages**'e git:
-   <https://github.com/SemizOtu/Clip-maker/settings/pages>
-2. **Source: Deploy from a branch** seç.
-3. **Branch:** bu kodun bulunduğu dalı seç — `claude/clip-layout-social-media-19i1sx`
-   (ya da bu dalı birleştirdiysen varsayılan dalı). Klasörü **/ (root)** bırak, **Save**.
-4. 1–2 dakika içinde site <https://semizotu.github.io/Clip-maker/> adresinde yayına girer.
-   Bundan sonra seçtiğin dala gelen her güncelleme siteye otomatik yansır.
+Düzenleme modunun değişiklikleri siteye kaydedebilmesi için GitHub’dan bir anahtar (token) gerekir:
 
-## Bilgisayarında çalıştırma (internetsiz)
+1. [Anahtar oluşturma sayfasını aç](https://github.com/settings/personal-access-tokens/new?name=Ask+Sitesi+Duzenleme&expires_in=none&contents=write&metadata=read) ve GitHub hesabınla giriş yap.
+2. **Expiration**: “No expiration” ya da uzun bir süre seç.
+3. **Repository access** → **Only select repositories** → **Clip-maker** deposunu seç.
+4. **Permissions** kısmında **Contents** izninin **Read and write** olduğundan emin ol.
+5. **Generate token**’a bas, `github_pat_…` ile başlayan anahtarı kopyala.
+6. Düzenleme modunda **⚙️ Ayarlar → GitHub bağlantısı** kutusuna yapıştırıp **Kaydet ve test et**’e bas.
 
-Siteyi kurmadan yerel olarak da kullanabilirsin — tek gereksinim Python:
+Anahtar yalnızca kendi tarayıcında saklanır; siteye ya da depoya yazılmaz.
 
-```bash
-python dev/serve.py
-# http://localhost:8642 otomatik açılır
-```
+## 📖 Bölümler
 
-Bu yol ayrıca çok çekirdekli modu her tarayıcıda garanti eder (COOP/COEP başlıklarını
-sunucu gönderir).
+| | Bölüm | İçinde neler var |
+|---|---|---|
+| — | Kapak | Kalp mühürlü zarf; dokununca açılır, varsa şarkınız başlar |
+| I | Sen & Ben | Harf harf açılan başlık, dönen “Sen benim …” sözleri, kalp çerçeveli fotoğraf, canlı sayaç |
+| II | Hikayemiz | Tarihli, fotoğraflı zaman tüneli |
+| III | Anılarımız | Bantlı polaroid duvarı; dokununca büyüyen fotoğraflar |
+| IV | Sana Mektubum | Mühürlü, kelime kelime beliren uzun mektup |
+| V | Neden Sen? | Çevrilen sebep kartları + “Seni ne kadar seviyorum?” ölçeri |
+| VI | Sürprizler | Kazı kazan + WhatsApp’tan haber veren aşk kuponları |
+| VII | Sonsuza Dek | Gece sahnesi, kaçan “Hayır” butonu ve konfetili “Seni Seviyorum” |
 
-## Nasıl çalışır?
+## 🔒 Gizlilik
 
-- Arayüz: tek sayfalık statik uygulama (`index.html`, `app.js`, `style.css`) — derleme yok,
-  sunucu yok, framework yok.
-- Video işleme: [ffmpeg.wasm](https://ffmpegwasm.netlify.app) (`vendor/ffmpeg/` altında depoya
-  gömülü; CDN gerekmez). Oyun+kamera düzeni tek bir ffmpeg filtresiyle üretilir:
-  `crop` (kamera) + `crop` (oyun) + `vstack`.
-- GitHub Pages özel HTTP başlığı gönderemediği için `coi-serviceworker.js`,
-  COOP/COEP başlıklarını bir service worker ile ekleyerek **SharedArrayBuffer**'ı
-  (= çok çekirdekli, hızlı ffmpeg) etkinleştirir. Service worker çalışmazsa uygulama
-  otomatik olarak tek çekirdekli çekirdeğe düşer.
-- Seçtiğin bölgeler kaynak videoya oransal saklanır; böylece aynı düzen farklı
-  çözünürlükteki kliplere de uygulanabilir ve `localStorage` ile oturumlar arasında korunur.
+- Site arama motorlarına kapalıdır (`noindex`), ama depo herkese açık olduğu için eklenen fotoğraflar adresini bilen herkes tarafından açılabilir. Paylaşmak istemediğin fotoğrafları ekleme.
+- GitHub anahtarın sadece senin tarayıcında durur. Başka bir cihazdan düzenlemek için orada da bir kere girmen gerekir; işin bitince **Ayarlar → Anahtarı bu cihazdan sil** diyebilirsin.
 
-## Sık sorulanlar
+## 🛠 Teknik notlar
 
-**Çıktı Instagram'a uygun mu?**
-Evet: 1080×1920 (9:16), H.264 yuv420p + AAC 48 kHz, 30 fps, `+faststart`. Reels için
-önerilen biçimin aynısı.
-
-**Büyük dosyalar?**
-İşleme tarayıcı belleğinde yapıldığı için dosya başına ~500 MB altı önerilir. Kısa
-klipler (15–90 sn) için fazlasıyla yeterli.
-
-**Tarayıcı videoyu önizleyemiyor (ör. HEVC/MKV)?**
-Önizleme çalışmasa bile "Hazırla" yine de işleyebilir; bölge seçimi için kayıtlı düzen
-kullanılır. En sorunsuz deneyim için H.264 MP4 kaynak önerilir.
-
-**Eski Kick otomatik klipçisi nerede?**
-Bu depo önceden Kick VOD'larından otomatik klip çıkaran bir Python aracıydı. O sistem
-artık kullanılmadığı için kaldırıldı; ihtiyaç olursa git geçmişinde duruyor
-(`git log` → `b9ee445` ve öncesi).
+- Derleme gerektirmeyen düz HTML/CSS/JavaScript. Tüm yazılar ve fotoğraf listesi `content.json` içinde; fotoğraflar `foto/`, şarkı `muzik/` klasörüne kaydedilir.
+- Yazı tipleri (Great Vibes, Cormorant Garamond, Caveat, Quicksand) `fonts/` içinde, fotoğraf kırpma aracı [Cropper.js](https://github.com/fengyuanchen/cropperjs) 1.6.2 (MIT) `vendor/` içinde.
+- Düzenleme modu değişiklikleri `claude/ecstatic-tesla-c0znbc` dalına (deponun varsayılan dalı) kaydeder ve GitHub Pages’in yayınladığı `claude/clip-layout-social-media-19i1sx` dalını da aynı sürüme eşitler. Elle `git push` yaparsan iki dala da gönder ya da **Settings → Pages** bölümünden kaynağı varsayılan dal olarak değiştir.
+- Bilgisayarında denemek için: `python3 -m http.server` → http://localhost:8000

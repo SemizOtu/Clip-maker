@@ -1,10 +1,4 @@
-# işletim sistemi / editör
 .DS_Store
 Thumbs.db
-
-# üretilen çıktılar / kullanıcı klipleri (yanlışlıkla commit edilmesin)
-output/
-*.mp4
-*.mov
-*.mkv
-*.webm
+node_modules/
+.vercel
