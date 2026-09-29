@@ -1,13 +1,4 @@
-__pycache__/
-*.pyc
-*.egg-info/
-.venv/
-venv/
-
-# Üretilen çıktılar
-output/
-*.mp4
-*.wav
-*.srt
-*.jpg
-!docs/**/*.jpg
+.DS_Store
+Thumbs.db
+node_modules/
+.vercel

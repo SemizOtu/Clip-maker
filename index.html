@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sana Özel ❤</title>
+<meta name="description" content="Bunu sadece senin için hazırladım. Aç ve gör ❤">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f9c9d6">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Sana özel bir mektup var 💌">
+<meta property="og:description" content="Bunu sadece senin için hazırladım. Aç ve gör ❤">
+<meta property="og:image" content="https://semizotu.github.io/Clip-maker/img/paylasim.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preload" href="fonts/great-vibes-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/cormorant-garamond-normal-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body class="is-loading">
+
+<div id="night" class="night" aria-hidden="true"><div class="stars"></div></div>
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<div id="loader" class="loader" aria-hidden="true">
+  <svg viewBox="0 0 100 100"><path d="M50 96C50 96 2 66 2 34C2 15 15 3 30 3C40 3 47 9 50 17C53 9 60 3 70 3C85 3 98 15 98 34C98 66 50 96 50 96Z"/></svg>
+</div>
+
+<header id="topbar" class="topbar" hidden>
+  <button id="music-btn" class="pill music-btn" type="button" aria-label="Şarkımızı çal / durdur" hidden>
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <svg class="note" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5a3 3 0 1 1-2-2.83V5.5l12-2.5v12a3 3 0 1 1-2-2.83V6.9l-8 1.67v9.93Z"/></svg>
+  </button>
+  <button id="menu-btn" class="pill menu-btn" type="button" aria-label="Bölümler" aria-expanded="false" aria-controls="menu">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 96C50 96 2 66 2 34C2 15 15 3 30 3C40 3 47 9 50 17C53 9 60 3 70 3C85 3 98 15 98 34C98 66 50 96 50 96Z"/></svg>
+    <span>Bölümler</span>
+  </button>
+</header>
+
+<main id="chapters"></main>
+
+<section id="intro" class="intro" aria-label="Kapak"></section>
+
+<nav id="menu" class="menu" aria-label="Bölümler" aria-hidden="true"></nav>
+
+<div id="wipe" class="wipe" aria-hidden="true">
+  <svg class="wipe-heart" viewBox="0 0 100 100">
+    <defs>
+      <radialGradient id="wipe-grad" cx="50%" cy="42%" r="62%">
+        <stop offset="0" stop-color="#ff9fb8"/>
+        <stop offset=".55" stop-color="#ec3d73"/>
+        <stop offset="1" stop-color="#a0124a"/>
+      </radialGradient>
+    </defs>
+    <path fill="url(#wipe-grad)" d="M50 96C50 96 2 66 2 34C2 15 15 3 30 3C40 3 47 9 50 17C53 9 60 3 70 3C85 3 98 15 98 34C98 66 50 96 50 96Z"/>
+  </svg>
+  <div class="wipe-card">
+    <p class="wipe-eyebrow"></p>
+    <p class="wipe-title"></p>
+    <p class="wipe-desc"></p>
+  </div>
+</div>
+
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Fotoğraf" hidden>
+  <button class="lb-btn lb-close" type="button" aria-label="Kapat">✕</button>
+  <button class="lb-btn lb-prev" type="button" aria-label="Önceki fotoğraf">‹</button>
+  <figure class="lb-figure">
+    <img class="lb-img" alt="">
+    <figcaption class="lb-cap"></figcaption>
+  </figure>
+  <button class="lb-btn lb-next" type="button" aria-label="Sonraki fotoğraf">›</button>
+  <p class="lb-count"></p>
+</div>
+
+<canvas id="fx-canvas" aria-hidden="true"></canvas>
+<audio id="music" loop preload="none"></audio>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<noscript>
+  <div class="noscript">Bu sayfayı görebilmek için tarayıcında JavaScript'in açık olması gerekiyor ❤</div>
+</noscript>
+</body>
+</html>

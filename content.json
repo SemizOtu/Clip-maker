@@ -1,0 +1,163 @@
+{
+  "_not": "Bu dosyayı elle düzenlemene gerek yok: sitenin adresinin sonuna ?duzenle ekleyerek açılan düzenleme modunu kullanabilirsin.",
+  "site": {
+    "title": "Sana Özel ❤",
+    "since": "2024-02-14T20:00",
+    "whatsapp": "",
+    "music": {
+      "src": "",
+      "title": "Bizim Şarkımız"
+    }
+  },
+  "intro": {
+    "kicker": "Sadece senin için hazırlandı",
+    "to": "Sevgilime",
+    "letter": "Seni seviyorum",
+    "hint": "Açmak için kalbe dokun"
+  },
+  "home": {
+    "title": "Sen & Ben",
+    "desc": "Her şeyin başladığı yer",
+    "kicker": "Bir varmış, bir yokmuş…",
+    "lead": "…bir gün iki kalp birbirini bulmuş. O günden beri dünya, eskisinden çok daha güzel.",
+    "rotatingPrefix": "Sen benim",
+    "rotating": [
+      "en güzel tesadüfüm",
+      "huzurum",
+      "gülüşümün sebebi",
+      "evim",
+      "en sevdiğim yerim",
+      "her şeyim"
+    ],
+    "photo": "",
+    "photoCaption": "En sevdiğim fotoğrafımız",
+    "counterTitle": "Birlikte geçirdiğimiz zaman",
+    "counterNote": "…ve her saniyesi ömrüme bedel.",
+    "quote": "Seni sevmek, bugüne kadar yaptığım en kolay ve en güzel şey."
+  },
+  "story": {
+    "title": "Hikayemiz",
+    "desc": "Birlikte yazdığımız sayfalar",
+    "intro": "Her aşk hikayesi güzeldir; ama bizimki, benim en sevdiğim.",
+    "items": [
+      {
+        "date": "Tanıştığımız gün",
+        "title": "İlk Karşılaşma",
+        "text": "O gün her şey sıradan başladı. Sonra sen geldin ve hiçbir şey eskisi gibi olmadı. Gözlerin, kalbimin kapısını çalan ilk misafirdi.",
+        "photo": ""
+      },
+      {
+        "date": "İlk buluşma",
+        "title": "İlk Buluşmamız",
+        "text": "Heyecandan ne konuştuğumu hatırlamıyorum ama gülüşünü hiç unutmadım. Saatler dakika gibi geçti; o gün zaman bile bizi kıskandı.",
+        "photo": ""
+      },
+      {
+        "date": "O özel an",
+        "title": "İlk “Seni Seviyorum”",
+        "text": "Kalbimde çoktan yazılıydı, sadece dudaklarımın cesaret etmesi gerekiyordu. O iki kelimeyi söylediğim an dünyanın en şanslı insanı oldum.",
+        "photo": ""
+      },
+      {
+        "date": "Unutulmaz bir gün",
+        "title": "Birlikte İlk Yolculuğumuz",
+        "text": "Yol ne kadar uzun olursa olsun, yanımda sen varken her yer ev gibiydi. Bavullarımıza anılar, kahkahalar ve bolca fotoğraf sığdırdık.",
+        "photo": ""
+      },
+      {
+        "date": "Bugün",
+        "title": "Ve Hâlâ…",
+        "text": "Hâlâ ilk günkü heyecanla, hatta daha fazlasıyla seviyorum seni. Hikayemizin en güzel sayfaları ise henüz yazılmadı.",
+        "photo": ""
+      }
+    ],
+    "outro": "Ve devamını birlikte yazacağız…"
+  },
+  "gallery": {
+    "title": "Anılarımız",
+    "desc": "Kalbimde asılı kareler",
+    "intro": "Her fotoğraf, kalbimde asılı duran küçük bir pencere. Birine dokun, o güne birlikte dönelim.",
+    "items": [
+      { "photo": "", "caption": "Bu gülüşe bayılıyorum" },
+      { "photo": "", "caption": "En sevdiğim günlerden biri" },
+      { "photo": "", "caption": "Sen + Ben = ❤" },
+      { "photo": "", "caption": "Zamanı durdurabilseydim…" },
+      { "photo": "", "caption": "Yine sen, yine o gülüş" },
+      { "photo": "", "caption": "Seninle her yer güzel" }
+    ]
+  },
+  "letter": {
+    "title": "Sana Mektubum",
+    "desc": "Kalbimden sana birkaç satır",
+    "intro": "Bazı şeyler yazıya dökülünce daha çok anlam kazanıyor…",
+    "greeting": "Sevgilim,",
+    "body": "Bu satırları yazarken yüzümde kocaman bir gülümseme var, çünkü seni düşünmek bile içimi ısıtmaya yetiyor. Sana olan sevgimi anlatmaya kelimelerin yetmeyeceğini biliyorum; yine de denemek istedim. Çünkü sen, uğruna kelimelerin bile yarıştığı birisin.\n\nHayatıma girdiğin günden beri her şey daha renkli. Sabahlar daha aydınlık, şarkılar daha anlamlı, sıradan günler bile bayram gibi. Bir mesajın, bir bakışın, bir gülüşün bütün yorgunluğumu alıp götürüyor. Yanında kendim olabiliyorum ve bu, dünyadaki en huzurlu his.\n\nBirlikte güldüğümüz anları, gece yarısı sohbetlerimizi, en saçma şeylere bile kahkahalarla güldüğümüz o anları o kadar çok seviyorum ki… Zor zamanlarımda elimi bırakmadığın, en kötü günümde bile bana iyi geldiğin için sana ne kadar teşekkür etsem az.\n\nBiliyorum, bazen dağınık, bazen inatçı, bazen de fazla sessiz olabiliyorum. Ama şunu hiç unutma: kalbim her zaman seninle. Ne olursa olsun yanında olmak, seni mutlu etmek ve seninle yaşlanmak istiyorum. Saçlarımız ağarsa da bu heyecan hiç eksilmesin istiyorum.\n\nSen benim en güzel tesadüfüm, en doğru kararım, en sevdiğim yerimsin. İyi ki doğdun, iyi ki karşıma çıktın, iyi ki benimlesin. Seni dünden çok, yarından az seviyorum; çünkü yarın seni bugünden de çok seveceğim.",
+    "closing": "Seni her şeyden çok seven,",
+    "signature": "Ben"
+  },
+  "reasons": {
+    "title": "Neden Sen?",
+    "desc": "Seni sevmemin küçük sebepleri",
+    "intro": "Seni sevmek için aslında hiçbir sebebe ihtiyacım yok… ama yine de birkaçını yazdım. Kartlara dokun!",
+    "items": [
+      "Gülüşün, en kötü günümü bile güzelleştiriyor.",
+      "Yanında hiç rol yapmadan, olduğum gibi olabiliyorum.",
+      "Gözlerinin içi güldüğünde dünyam duruyor.",
+      "Beni bazen benden bile iyi tanıyorsun.",
+      "En saçma şakalarıma bile gülüyorsun.",
+      "Sarılman, dünyadaki en güvenli yer.",
+      "Hayallerimi dinliyor, onlara ortak oluyorsun.",
+      "Zor anlarımda elimi hiç bırakmıyorsun.",
+      "Sesini duymak her şeye iyi geliyor.",
+      "Seninle sessizlik bile güzel.",
+      "Her gün beni biraz daha iyi biri yapıyorsun.",
+      "Çünkü sen, sensin. Başka bir sebebe gerek yok."
+    ],
+    "meterTitle": "Seni ne kadar seviyorum?",
+    "meterHint": "Ölçmek için kalbe dokun",
+    "meterResult": "Ölçülemeyecek kadar çok!",
+    "meterNote": "Hata: Sevgi miktarı cihazın kapasitesini aştı 😅"
+  },
+  "surprise": {
+    "title": "Sürprizler",
+    "desc": "Senin için küçük hediyeler",
+    "intro": "Sana birkaç küçük hediyem var. Biri saklı; diğerleri istediğin zaman kullanabileceğin aşk kuponları!",
+    "scratchTitle": "Kazı Kazan",
+    "scratchHint": "Parmağınla kazı, sürprizini gör!",
+    "scratchPrize": "Tebrikler! 🎉 Sınırsız sarılma ve bir ömür boyu öpücük kazandın. Ödülünü benden istediğin zaman alabilirsin 💋",
+    "couponsTitle": "Aşk Kuponları",
+    "couponsIntro": "Kullanmak istediğin kupona dokun, bana haber gelsin 😉",
+    "coupons": [
+      { "icon": "🤗", "title": "Sınırsız Sarılma", "text": "Geçerlilik süresi: sonsuza dek" },
+      { "icon": "🎬", "title": "Film Gecesi", "text": "Film seçimi tamamen senden, itiraz yok!" },
+      { "icon": "☕", "title": "Kahvaltı Benden", "text": "Yatağa servis dahil" },
+      { "icon": "🍕", "title": "Canın Ne Çekerse", "text": "İstediğin yemek, anında sipariş" },
+      { "icon": "💆", "title": "Masaj Kuponu", "text": "15 dakika, pazarlıksız" },
+      { "icon": "🏆", "title": "Tartışma Kazanma Hakkı", "text": "Haklı olmasan bile 😄" }
+    ]
+  },
+  "finale": {
+    "title": "Sonsuza Dek",
+    "desc": "Sana sormak istediğim bir şey var",
+    "pre": "Ve şimdi… sana sormak istediğim bir şey var.",
+    "question": "Benimle sonsuza dek kalır mısın?",
+    "yes": "Evet",
+    "no": "Hayır",
+    "noTexts": [
+      "Emin misin? 🥺",
+      "Bir daha düşün!",
+      "Yanlış butona basıyorsun",
+      "Bu buton bozuk galiba 😅",
+      "Kaçamazsın 😄",
+      "Evet'e bas artık!",
+      "Olmaz öyle şey!",
+      "Kalbimi kırma 💔"
+    ],
+    "noGone": "Görünüşe göre tek bir seçeneğin var 😄",
+    "successTitle": "Biliyordum!",
+    "big": "Seni Seviyorum",
+    "successText": "Sen benim bugünüm, yarınım ve sonsuzumsun. İyi ki varsın, iyi ki benimlesin.",
+    "photo": ""
+  },
+  "footer": "Sonsuza dek seninle ❤"
+}

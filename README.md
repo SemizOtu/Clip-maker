@@ -1,355 +1,65 @@
-# 🎬 Clip Maker — Klip Hazırlayıcı + Kick Otomatik Klipçi
+# 💌 Sana Özel
 
-İki kullanım bir arada:
+Sevgiline hazırlanmış, fotoğraflı, kalpli ve çiçekli romantik bir web sitesi.
+Kalp şeklinde sayfa geçişleri, açılan bir zarf, uçuşan kalpler ve gül yaprakları,
+birlikte geçen zamanı sayan bir sayaç, uzun bir mektup, çevrilen kartlar, kazı kazan,
+aşk kuponları ve “Hayır” butonu kaçan eğlenceli bir final içerir.
 
-### 1) Klip editörü (ana kullanım) — kendi klibini sosyal medyaya hazırla
-Bir video dosyası verirsin, sistem onu **paylaşıma hazır** hale getirir:
-- 📱 **9:16 dikey MP4** (TikTok / Reels / Shorts) — bulanık arka planlı, görüntü kırpılmadan
-- 🔤 **Kelime kelime karaoke altyazı** (konuşulan kelime sarı vurgulu — sessiz akışta bile izlenir)
-- 🔊 **Ses normalizasyonu** (−16 LUFS — ne çok kısık ne çok yüksek)
-- 🟪 İsteğe bağlı **1:1 kare** ve **16:9 yatay** çıktı, üstte **başlık/hook**
-- ✂️ Baştan/sondan **kırpma**, birden çok dosyayı **birleştirme (montaj)**
-- 🖼️ **Kapak görseli** + paylaşım için **önerilen başlık/etiket** metni
+## 🌐 Adresler
 
-```bash
-python -m clipmaker klibim.mp4
-```
-
-### 2) Kick otomatik klipçi (ikincil) — VOD'dan öne çıkan anları bul
-Bir Kick VOD/kanal bağlantısı verirsen, izleyici klipleri + chat/ses analiziyle öne çıkan
-anları bulup yukarıdaki tüm işlemleri uygular.
-
-```bash
-python -m clipmaker https://kick.com/kanaladi
-```
-
----
-
-## Uygulama (CMD'siz kullanım)
-
-CMD yazmak istemiyorsan basit bir masaüstü uygulaması var:
-
-- **Windows:** depo klasöründeki **`Klip Hazirla.bat`** dosyasına çift tıkla.
-- **Her yerde:** `python -m clipmaker` (argümansız) ya da `python -m clipmaker --gui`.
-
-Açılan pencerede: **Seç...** ile videonu seç → formatı/altyazıyı/kırpmayı ayarla →
-**🚀 Hazırla**. İlerleme pencerede görünür; bitince **📂 Çıktı klasörünü aç**.
-
-> Uygulama da `faster-whisper` ile altyazı üretir (`pip install faster-whisper`).
-> Kurulu değilse altyazısız üretir.
-
-## Klip editörü — komut satırı kullanımı
-
-```bash
-# En basit: klibi 9:16 dikey + karaoke altyazılı yap
-python -m clipmaker klibim.mp4
-
-# Baştan/sondan kırp (montaj):
-python -m clipmaker klibim.mp4 --trim-start 0:05 --trim-end 0:35
-
-# Dikey + kare üret, üste başlık koy:
-python -m clipmaker klibim.mp4 --formats vertical,square --title "şuna bak"
-
-# Birden çok parçayı tek videoya birleştir (montaj):
-python -m clipmaker parca1.mp4 parca2.mp4 parca3.mp4
-
-# Altyazısız, sade:
-python -m clipmaker klibim.mp4 --no-captions
-```
-
-Çıktılar `output/<dosyaadı>_hazir/` klasörüne düşer: `vertical.mp4` (ve istenirse
-`square.mp4` / `horizontal.mp4`), `kapak.jpg`, `paylasim_metni.txt`.
-
-> **Altyazı için** `faster-whisper` gerekir (tek seferlik): `pip install faster-whisper`.
-> Kurulu değilse klip yine üretilir, sadece altyazısız olur. Daha net altyazı için
-> `--caption-model small` (biraz daha yavaş). Windows'ta dosya yolunu tırnak içine al:
-> `python -m clipmaker "C:\Users\Ben\Videolar\klibim.mp4"`.
-
----
-
-## Kick otomatik klipçi — nasıl çalışır?
-
-Sistem en iyi anları **iki yoldan** bulur ve hangisi varsa onu kullanır:
-
-### A) İzleyici klipleri (birincil — en güvenilir, hızlı, ücretsiz)
-
-İzleyiciler yayın sırasında en iyi/komik anları **kendileri klipler**. Bu, "paylaşmaya
-değer an" için var olan **en güvenilir sinyaldir** — gerçek insan kararı. Sistem kanalın
-kliplerini çeker, her birini `started_at − vod.started_at` ile VOD'daki yerine eşler,
-üst üste binenleri birleştirir ve **izlenme sayısına göre** sıralar. Yani sadece
-"insanların zaten en çok kliplediği" anları keser. **Ne yapay zeka, ne transcript, ne ses
-analizi gerekir** — chat/ses taramasına gerek kalmadığı için çok daha hızlıdır.
-
-### B) Sinyal + yapay zeka (yedek — VOD'da izleyici klibi yoksa)
-
-İzleyici klibi yoksa eski yola düşer: ucuz sinyallerle (chat yoğunluğu + ses) aday üretir,
-sonra (varsa) bir **yapay zeka jürisi** adayların *içeriğini* (konuşma + chat tepkisi)
-okuyup gerçekten komik/çarpıcı olanları seçer. Bu, OpusClip'in açık kaynak alternatiflerinin
-([SamurAIGPT](https://github.com/samuraigpt/ai-youtube-shorts-generator),
-[ClipsAI](https://github.com/ClipsAI/clipsai)) kullandığı yaklaşımın livestream'e
-uyarlanmış hâlidir.
-
-> Her iki yolda da seçilen klipler aynı şekilde işlenir: **9:16 dikey + kelime kelime
-> karaoke altyazı + ses normalizasyonu** (paylaşıma hazır). İzleyici-klip modunu kapatmak
-> için `--no-viewer-clips`.
-
-```
-Aday üretimi (sinyaller) ──► aday havuzu ──► [yapay zeka jürisi] ──► en iyi N klip
-   chat + ses                                 transcript + chat okur,
-   (tüm yayını ucuza tarar)                    0-100 puanlar, başlık üretir
-```
-
-### 1) Aday üretimi — iki sinyal
-
-Sistem iki bağımsız sinyali birleştirerek "dikkat çekici an" skoru üretir:
-
-1. **Chat analizi** — Kick'in VOD chat tekrarı taranır. Mesaj yoğunluğundaki ani artışlar,
-   kahkaha kalıpları (`HAHAHA`, `sjsjsj`, `KEKW`...), Türkçe/evrensel heyecan ifadeleri
-   (`OHA`, `yok artık`, `EFSANE`, `POG`...), **"kliple!" çağrıları**, emote spam'i,
-   **kopyala-yapıştır dalgaları** (aynı mesajın onlarca kişiden gelmesi) ve BÜYÜK HARF
-   bağırışları puanlanır. Bot komutları (`!discord`) ve saf linkler elenir.
-2. **Ses analizi** — yalnızca "yüksek ses" değil, **ani ses değişimi** (onset/novelty)
-   yakalanır: yayıncının birden bağırması, gülmesi, ortamın patlaması. Sürekli intro müziği
-   gibi sabit yükseklikler elenir.
-
-Bu yaklaşımı "sadece yoğun/yüksek anı al"dan ayıran dört nokta:
-
-- **Chat gecikmesi telafisi** — chat, ekrandaki olaydan ~4 sn *sonra* tepki verir
-  (yayın gecikmesi + insan tepkisi + yazma süresi). Sinyal öne kaydırılır ki klip,
-  chat tepkisinin değil, **tepkiyi doğuran anın** üzerine otursun.
-- **Patlama (burst) tespiti** — "sürekli aktif chat" değil, yerel ortalamanın üzerine
-  **aniden sıçrayan** chat dikkat çekici anı işaret eder.
-- **Uzlaşma bonusu** — hem yayıncının (ses) hem de izleyicinin (chat) **aynı anda**
-  patladığı anlar gerçek komik/çarpıcı anlardır ve ekstra puan alır. Yalnızca müzik
-  (ses var, chat yok) ya da yalnızca selamlaşma spam'i (chat var, ses yok) bu bonusu alamaz.
-- **Pencere-altı zirve** — klip, parabol interpolasyonuyla bulunan gerçek tepe noktasına
-  göre konumlandırılır.
-
-İki sinyal dayanıklı z-skoruna çevrilip ağırlıklı birleştirilir (varsayılan %60 chat +
-%40 ses) ve uzlaşma bonusu eklenir; çakışmayan en iyi pencereler aday havuzu olur.
-
-### 2) Yapay zeka jürisi — içeriği anlar
-
-Sinyaller yalnızca "hareketli" anı bulur; ama **hareketli ≠ komik**. Asıl zeka burada:
-her aday anın **konuşması Whisper ile yazıya dökülür** ve o anki **chat tepkileriyle**
-birlikte bir dil modeline (LLM) sunulur. Model her adayı *tek başına paylaşılan bir klip
-olarak* ne kadar komik / çarpıcı / dramatik / ilgi çekici olduğuna göre **0-100 puanlar**,
-bir **kategori** ve paylaşıma hazır bir **başlık** üretir. Klipler bu yapay zeka puanına
-göre seçilir — yani "sadece kalabalık olduğu için" öne çıkan sönük anlar elenir.
-
-Yapay zeka motoru **otomatik seçilir** (kademeli, hiçbiri yoksa sistem yine çalışır):
-
-| Öncelik | Motor | Gereksinim | Kalite |
-|---|---|---|---|
-| 1 | **Claude API** | `ANTHROPIC_API_KEY` + `pip install anthropic` | En iyi |
-| 2 | **Ollama (yerel, ücretsiz)** | `ollama serve` çalışıyor olmalı | İyi |
-| 3 | **Sinyal sıralaması** | — (her zaman var) | Temel |
-
-**Kurulum — Claude (önerilen):**
-```bash
-pip install anthropic faster-whisper
-# Windows (kalıcı): setx ANTHROPIC_API_KEY "sk-ant-..."   (yeni terminal açın)
-# Mac/Linux:        export ANTHROPIC_API_KEY="sk-ant-..."
-python -m clipmaker <link>          # --ai auto: anahtarı otomatik bulur
-```
-> Maliyet düşüktür: jüriye yalnızca aday anların kısa metni gönderilir; VOD başına
-> birkaç–on sent civarı (varsayılan model `claude-opus-4-8`). Daha ucuzu için
-> `--ai-model claude-haiku-4-5`. Anahtarı [console.anthropic.com](https://console.anthropic.com)'dan alırsınız.
-
-**Kurulum — Ollama (ücretsiz/yerel):**
-```bash
-pip install faster-whisper
-# https://ollama.com indirip kurun, sonra:
-ollama pull llama3.1
-python -m clipmaker <link> --ai ollama   # ya da --ai auto
-```
-
-Yapay zekayı kapatmak için `--ai off` (yalnızca sinyaller kullanılır).
-
-```
-Kick VOD linki ──► Kick API (curl_cffi) ──► m3u8 kaynağı + chat tekrarı
-                                                  │
-                          ┌───────────────────────┴───────────────┐
-                          ▼                                       ▼
-                   Chat sinyali (z-skor)                  Ses sinyali (z-skor)
-                          └───────────────┬───────────────────────┘
-                                          ▼
-                              Birleşik skor + zirve seçimi
-                                          ▼
-                     ffmpeg: yatay klip + 9:16 dikey + kapak + rapor
-```
-
-## Kurulum
-
-Gereksinimler: **Python 3.10+** ve **ffmpeg**.
-
-```bash
-# 1) ffmpeg
-sudo apt install ffmpeg        # Ubuntu/Debian
-brew install ffmpeg            # macOS
-winget install ffmpeg          # Windows
-
-# 2) Python bağımlılıkları
-pip install -r requirements.txt
-
-# (opsiyonel) otomatik altyazı için:
-pip install faster-whisper
-```
-
-## Kullanım
-
-```bash
-# Belirli bir VOD'dan 5 klip (varsayılan ayarlar):
-python -m clipmaker https://kick.com/KANALADI/videos/9f10b2c3-...
-
-# Kanal linki ver, en son yayını otomatik kullansın:
-python -m clipmaker https://kick.com/KANALADI
-
-# Önce kanalın VOD'larını listele, sonra seç:
-python -m clipmaker https://kick.com/KANALADI --list
-python -m clipmaker https://kick.com/KANALADI --pick 2
-
-# 8 adet 30 saniyelik klip, başlık yazısıyla:
-python -m clipmaker <link> -n 8 -d 30 --title "KANALADI en iyi anlar"
-
-# Önce sadece analiz raporu al (klip kesmeden):
-python -m clipmaker <link> --analyze-only
-
-# Hızlı deneme: yalnızca ilk 30 dakikayı analiz et:
-python -m clipmaker <link> --limit-minutes 30
-
-# En iyi sonuç: yapay zeka jürisi + karaoke altyazı (zaten varsayılan):
-python -m clipmaker <link> --ai auto --lang tr
-
-# Daha net altyazı (zayıf bilgisayarda daha yavaş):
-python -m clipmaker <link> --caption-model small
-
-# Altyazısız, sade dikey klip istersen:
-python -m clipmaker <link> --no-captions
-```
-
-### Karaoke altyazı (paylaşıma hazır kliplerin olmazsa olmazı)
-
-Sosyal medyada klipleri "hazır" yapan şey, **kelime kelime hareketli altyazıdır**
-(konuşulan kelime vurgulanır; sessiz akışta bile izlenir). Bu **varsayılan olarak açıktır**.
-
-```bash
-pip install faster-whisper      # tek seferlik; altyazı için gerekli
-python -m clipmaker <link> --ai auto --lang tr
-```
-
-- Altyazı, **dikey (9:16)** klibe TikTok/Reels/Shorts tarzında büyük, ortada, konuşulan
-  kelime **sarı vurgulu** olarak gömülür. Ses de otomatik **normalize** edilir (loudnorm).
-- `faster-whisper` kurulu değilse klipler yine üretilir ama **altyazısız** (program başında
-  açıkça uyarır). Kapatmak için `--no-captions`.
-- Altyazı yalnızca seçilen **final klipler** için, klibin **yüksek kaliteli sesinden** üretilir
-  (hızlı ve doğru). Model: `--caption-model tiny|base|small` (varsayılan `base`; en net için `small`).
-- İlk çalıştırmada whisper modeli (~birkaç yüz MB) bir kez indirilir.
-
-### Çıktı yapısı
-
-```
-output/kanaladi_9f10b2c3/
-├── REPORT.md             # okunabilir rapor: zamanlar, skorlar, öne çıkan mesajlar
-├── highlights.json       # makine-okunur tam veri
-├── clips/
-│   ├── clip_01_01-23-45.mp4          # yatay
-│   └── vertical/
-│       └── clip_01_01-23-45_dikey.mp4 # 9:16, paylaşıma hazır
-├── thumbnails/
-│   └── clip_01_01-23-45.jpg
-└── cache/                # chat + ses önbelleği (tekrar çalıştırma hızlı olur)
-```
-
-> Aynı VOD'u farklı ayarlarla tekrar çalıştırmak hızlıdır: chat ve ses
-> önbellekten okunur, yalnızca seçim ve kesim yeniden yapılır.
-
-### Önemli parametreler
-
-| Parametre | Varsayılan | Açıklama |
-|---|---|---|
-| `-n, --clips` | 5 | üretilecek klip sayısı |
-| `--no-viewer-clips` | — | izleyici kliplerini kullanma; doğrudan sinyal+yapay zeka moduna geç |
-| `-d, --duration` | 45 | klip süresi (saniye, yalnızca sinyal modunda) |
-| `--pre` | 0.35 | klibin ne kadarının zirveden *önce* başlayacağı (bağlam için) |
-| `--chat-weight` / `--audio-weight` | 0.6 / 0.4 | sinyal ağırlıkları |
-| `--agreement` | 0.7 | chat+ses aynı anda patlarsa eklenen uzlaşma bonusu |
-| `--chat-lag` | 4 | chat'in olaya göre gecikmesi (sn); klibi öne kaydırır |
-| `--ai` | auto | yapay zeka motoru: `auto` / `claude` / `ollama` / `off` |
-| `--ai-model` | — | model adı (Claude: `claude-opus-4-8`, Ollama: `llama3.1`) |
-| `--judge-pool` | otomatik | jüriye sunulacak aday sayısı (varsayılan ≈ klip×3) |
-| `--transcribe-model` | base | jüri konuşma tanıma modeli: `tiny` (en hızlı) / `base` / `small` |
-| `--no-transcribe` | — | konuşmayı yazıya dökme; jüri yalnızca chat'e baksın |
-| `--caption-model` | base | karaoke altyazı modeli: `tiny` / `base` / `small` (en net: `small`) |
-| `--no-captions` | — | kelime kelime hareketli altyazıyı kapat (varsayılan açık) |
-| `--no-normalize` | — | ses yüksekliği normalizasyonunu (loudnorm) kapat |
-| `--no-chat` / `--no-audio` | — | bir sinyali tamamen kapat |
-| `--quality` | best | klip kesiminde kullanılacak video kalitesi (`best`/`worst`) |
-| `--bucket` | 5 | analiz penceresi (saniye); küçültmek hassasiyeti artırır |
-
-> **Yavaş bilgisayar / ekran kartı yok mu?** Konuşma tanıma işlemcide çalışır.
-> Hız için: `--transcribe-model tiny --caption-model tiny --judge-pool 8`.
-
-> **İpucu — klipler hâlâ "tam o anı" yakalamıyorsa:** chat tepkisi yavaşsa
-> `--chat-lag 6`, hızlıysa `--chat-lag 2` deneyin. Komik anları daha çok kovalamak için
-> `--agreement 1.0` (yayıncı + chat birlikte patlayan anlara odaklanır). Hassasiyet için
-> `--bucket 3`. Önce `--analyze-only` ile raporu görüp ayar yapmak en hızlısıdır.
-
-## Sorun giderme
-
-**"Kick API'sine ulaşılamadı" / 403 hatası**
-Kick, Cloudflare arkasındadır. Sistem `curl_cffi` ile gerçek tarayıcı taklidi yapar ve bu
-normalde yeterlidir; ancak **veri merkezi / VPN IP'leri Cloudflare tarafından sık engellenir**.
-Çözümler:
-1. Ev internetinden (normal IP) çalıştırın.
-2. Yine olmazsa video kaynağını elle verin: tarayıcıda VOD'u açın, geliştirici araçları →
-   Ağ sekmesinde `master.m3u8` adresini kopyalayın ve `--m3u8 <adres>` ile çalıştırın
-   (bu modda chat analizi yine denenir, video indirme garantiye alınır).
-3. `yt-dlp` kuruluysa sistem kaynağı onunla çözmeyi de otomatik dener.
-
-**Chat verisi alınamıyor ama video iniyor**
-Sistem otomatik olarak yalnızca ses sinyaliyle devam eder. Uzun yayınlarda chat taraması
-zaman alır (Kick API'si sayfa sayfa verir); ilerleme yüzdesi gösterilir ve sonuç önbelleğe alınır.
-
-**Uzun VOD'larda ses analizi yavaş**
-Ses, en düşük bant genişlikli kaynaktan (varsa salt-ses kanalından) indirilir; yine de
-5+ saatlik yayınlarda dakikalar sürebilir. `--limit-minutes` ile sınırlayabilir veya
-`--no-audio` ile yalnızca chat kullanabilirsiniz.
-
-**Klipler ilginç anları kaçırıyor**
-- `--bucket 3` ile hassasiyeti artırın,
-- chat'i aktif bir yayında `--chat-weight 0.8` deneyin,
-- `--analyze-only` ile rapora bakıp `-d` süresini ayarlayın.
-
-## Testler
-
-```bash
-python -m unittest discover -s tests
-```
-
-37 test: URL/zaman/playlist çözümleme, hype puanlama, sinyal birleştirme, zirve seçimi
-ve ffmpeg ile gerçek uçtan uca medya hattı (sentetik video üzerinde).
-
-## Mimari
-
-| Modül | Görev |
+| | Adres |
 |---|---|
-| `clipmaker/kick_api.py` | Kick API istemcisi (curl_cffi ile Cloudflare aşımı), VOD + chat + klipler |
-| `clipmaker/clips_source.py` | izleyici kliplerini VOD'a eşleme, kümeleme, popülerliğe göre sıralama |
-| `clipmaker/chat_analysis.py` | mesaj yoğunluğu + hype kalıpları → z-skor sinyali |
-| `clipmaker/audio_analysis.py` | RMS ses enerjisi + yenilik → z-skor sinyali |
-| `clipmaker/highlights.py` | sinyal birleştirme, çakışmasız aday seçimi |
-| `clipmaker/transcribe.py` | aday anların konuşmasını Whisper ile yazıya döker |
-| `clipmaker/ai_judge.py` | yapay zeka jürisi (Claude / Ollama) — içeriği puanlar |
-| `clipmaker/gui.py` | basit masaüstü uygulaması (Tkinter) — CMD'siz kullanım |
-| `clipmaker/editor.py` | klip editörü: kendi klibini sosyal medyaya hazırlar (ana kullanım) |
-| `clipmaker/captions.py` | kelime kelime karaoke altyazı (ASS) üretimi |
-| `clipmaker/media.py` | ffmpeg: yeniden çerçeveleme (9:16/1:1/16:9), kesim, altyazı gömme, loudnorm |
-| `clipmaker/pipeline.py` | uçtan uca akış + önbellekleme |
-| `clipmaker/cli.py` | komut satırı arayüzü |
+| Sevgiline göndereceğin adres | **https://semizotu.github.io/Clip-maker/** |
+| Düzenleme modu (sadece sen) | https://semizotu.github.io/Clip-maker/?duzenle |
 
-## Notlar
+> Düzenleme adresini sevgiline gönderme; o sadece senin için. Göndereceğin adres `?duzenle` olmadan olan.
 
-- Kick'in herkese açık ama **resmi olmayan** API'si kullanılır; Kick uç noktaları
-  değiştirirse `kick_api.py` güncellenmelidir.
-- Yalnızca **kendi yayınlarınız veya izinli içerik** için kullanın.
+## ✏️ Fotoğraf ve yazıları değiştirme
+
+Adresin sonuna **`?duzenle`** ekleyince düzenleme modu açılır:
+
+1. **Yazılar:** Kesik çizgili her yazıya dokun ve değiştir. Bitince alttaki **💾 Kaydet**’e bas.
+2. **Fotoğraflar:** Fotoğraf alanındaki **📷 Fotoğraf seç** butonuna dokun → fotoğrafını seç → kırp → **Kırp ve ekle**. Fotoğraf kendiliğinden kaydedilir.
+3. **Ekle / sırala / sil:** Listelerin altındaki **+ Ekle** butonları (yeni anı, fotoğraf, sebep, kupon), **↑ ↓** ile sıralama, **✕** ile silme.
+4. **⚙️ Ayarlar:** Birlikteliğinizin başladığı tarih (sayaç), zarf açılınca çalacak şarkınız (MP3), WhatsApp numaran (kupon mesajları için), bölüm adları ve kaçan “Hayır” butonunun yazıları.
+5. **👁 Önizle:** Sevgilinin göreceği hâli gösterir.
+
+Kaydettiğin her şey 1–2 dakika içinde siteye yansır.
+
+## 🔑 Bir kereye mahsus kurulum: GitHub anahtarı
+
+Düzenleme modunun değişiklikleri siteye kaydedebilmesi için GitHub’dan bir anahtar (token) gerekir:
+
+1. [Anahtar oluşturma sayfasını aç](https://github.com/settings/personal-access-tokens/new?name=Ask+Sitesi+Duzenleme&expires_in=none&contents=write&metadata=read) ve GitHub hesabınla giriş yap.
+2. **Expiration**: “No expiration” ya da uzun bir süre seç.
+3. **Repository access** → **Only select repositories** → **Clip-maker** deposunu seç.
+4. **Permissions** kısmında **Contents** izninin **Read and write** olduğundan emin ol.
+5. **Generate token**’a bas, `github_pat_…` ile başlayan anahtarı kopyala.
+6. Düzenleme modunda **⚙️ Ayarlar → GitHub bağlantısı** kutusuna yapıştırıp **Kaydet ve test et**’e bas.
+
+Anahtar yalnızca kendi tarayıcında saklanır; siteye ya da depoya yazılmaz.
+
+## 📖 Bölümler
+
+| | Bölüm | İçinde neler var |
+|---|---|---|
+| — | Kapak | Kalp mühürlü zarf; dokununca açılır, varsa şarkınız başlar |
+| I | Sen & Ben | Harf harf açılan başlık, dönen “Sen benim …” sözleri, kalp çerçeveli fotoğraf, canlı sayaç |
+| II | Hikayemiz | Tarihli, fotoğraflı zaman tüneli |
+| III | Anılarımız | Bantlı polaroid duvarı; dokununca büyüyen fotoğraflar |
+| IV | Sana Mektubum | Mühürlü, kelime kelime beliren uzun mektup |
+| V | Neden Sen? | Çevrilen sebep kartları + “Seni ne kadar seviyorum?” ölçeri |
+| VI | Sürprizler | Kazı kazan + WhatsApp’tan haber veren aşk kuponları |
+| VII | Sonsuza Dek | Gece sahnesi, kaçan “Hayır” butonu ve konfetili “Seni Seviyorum” |
+
+## 🔒 Gizlilik
+
+- Site arama motorlarına kapalıdır (`noindex`), ama depo herkese açık olduğu için eklenen fotoğraflar adresini bilen herkes tarafından açılabilir. Paylaşmak istemediğin fotoğrafları ekleme.
+- GitHub anahtarın sadece senin tarayıcında durur. Başka bir cihazdan düzenlemek için orada da bir kere girmen gerekir; işin bitince **Ayarlar → Anahtarı bu cihazdan sil** diyebilirsin.
+
+## 🛠 Teknik notlar
+
+- Derleme gerektirmeyen düz HTML/CSS/JavaScript. Tüm yazılar ve fotoğraf listesi `content.json` içinde; fotoğraflar `foto/`, şarkı `muzik/` klasörüne kaydedilir.
+- Yazı tipleri (Great Vibes, Cormorant Garamond, Caveat, Quicksand) `fonts/` içinde, fotoğraf kırpma aracı [Cropper.js](https://github.com/fengyuanchen/cropperjs) 1.6.2 (MIT) `vendor/` içinde.
+- Düzenleme modu değişiklikleri `claude/ecstatic-tesla-c0znbc` dalına (deponun varsayılan dalı) kaydeder ve GitHub Pages’in yayınladığı `claude/clip-layout-social-media-19i1sx` dalını da aynı sürüme eşitler. Elle `git push` yaparsan iki dala da gönder ya da **Settings → Pages** bölümünden kaynağı varsayılan dal olarak değiştir.
+- Bilgisayarında denemek için: `python3 -m http.server` → http://localhost:8000
