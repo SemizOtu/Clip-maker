@@ -148,7 +148,7 @@ class GitHub {
     const tree = await this.req('POST', '/git/trees', { base_tree: head.tree.sha, tree: entries });
     const commit = await this.req('POST', '/git/commits', { message, tree: tree.sha, parents: [headSha] });
     await this.req('PATCH', `/git/refs/heads/${GitHub.ref(this.cfg.branch)}`, { sha: commit.sha, force: false });
-    return commit.sha;
+    return { sha: commit.sha, tree: tree.sha };
   }
 
   async commit(files, message) {
@@ -160,13 +160,23 @@ class GitHub {
     }
   }
 
-  async mirror(sha) {
+  // GitHub Pages dalına aynı içeriği, geçmişi silmeden yeni bir commit olarak ekler
+  async mirror(treeSha, message) {
     for (const b of this.cfg.mirrors || []) {
       if (!b || b === this.cfg.branch) continue;
-      try {
-        await this.req('PATCH', `/git/refs/heads/${GitHub.ref(b)}`, { sha, force: true });
-      } catch (e) {
-        console.warn('Pages dalı güncellenemedi:', b, e);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const ref = await this.req('GET', `/git/ref/heads/${GitHub.ref(b)}`);
+          const parent = ref.object.sha;
+          const parentCommit = await this.req('GET', `/git/commits/${parent}`);
+          if (parentCommit.tree.sha === treeSha) break;
+          const c = await this.req('POST', '/git/commits', { message: `${message} (Pages)`, tree: treeSha, parents: [parent] });
+          await this.req('PATCH', `/git/refs/heads/${GitHub.ref(b)}`, { sha: c.sha, force: false });
+          break;
+        } catch (e) {
+          if (e.status === 404) break;
+          if (attempt === 1) console.warn('Pages dalı güncellenemedi:', b, e);
+        }
       }
     }
   }
@@ -273,12 +283,12 @@ async function save(reason = '💕 Site güncellendi', { quiet = false } = {}) {
   const message = photoCount > 1 ? `${reason} (${photoCount} fotoğraf)` : reason;
   let ok = false;
   try {
-    const sha = await S.gh.commit(files, message);
+    const result = await S.gh.commit(files, message);
     uploads.forEach(([p]) => S.pending.delete(p));
     S.baseline = text;
     referenced.forEach((p) => S.known.add(p));
     removals.forEach((p) => S.known.delete(p));
-    await S.gh.mirror(sha);
+    await S.gh.mirror(result.tree, message);
     ok = true;
     S.lastError = '';
     if (!quiet) app.toast('Kaydedildi! Site 1-2 dakika içinde güncellenecek ❤', { ms: 4500 });

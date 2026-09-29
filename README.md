@@ -14,6 +14,11 @@ aşk kuponları ve “Hayır” butonu kaçan eğlenceli bir final içerir.
 
 > Düzenleme adresini sevgiline gönderme; o sadece senin için. Göndereceğin adres `?duzenle` olmadan olan.
 
+### Daha güzel bir adres istersen (isteğe bağlı)
+
+- **Vercel (ör. `bizim-hikayemiz.vercel.app`):** [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → `Clip-maker` → Project Name: `bizim-hikayemiz` → **Deploy**. Ayar gerekmez; düzenleme modunda kaydettiğin her değişiklik Vercel’de de otomatik yayınlanır.
+- **GitHub adresini değiştirmek:** Depo adını değiştirirsen (Settings → General → Repository name, ör. `sevgilim`) adres `https://semizotu.github.io/sevgilim/` olur. Bu durumda `js/config.js` içindeki `repo` satırını ve `index.html` içindeki paylaşım görseli adresini de güncelle.
+
 ## ✏️ Fotoğraf ve yazıları değiştirme
 
 Adresin sonuna **`?duzenle`** ekleyince düzenleme modu açılır:
