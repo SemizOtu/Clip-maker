@@ -1,11 +1,12 @@
+// GET    /api/upload           → yüklenmiş bütün fotoğraf ve şarkılar (“Yüklediklerim”)
 // POST   /api/upload           → tarayıcının Blob'a doğrudan yükleme yapabilmesi için geçici izin
-// DELETE /api/upload?p=…       → kaydedilmeden vazgeçilen dosyayı siler
+// DELETE /api/upload?p=…       → sitede kullanılmayan bir dosyayı kalıcı olarak siler
 // PUT    /api/upload?p=…       → (sadece bilgisayarda denerken) dosyayı yerel klasöre yazar
 import { handleUpload } from '@vercel/blob/client';
 import { json, assertSameOrigin, route, HttpError } from '../lib/http.js';
 import { isAdmin } from '../lib/session.js';
 import { loadContent, mediaRefs } from '../lib/content.js';
-import { isLocal, saveLocalFile, removeFiles, MEDIA_RE } from '../lib/store.js';
+import { isLocal, saveLocalFile, removeFiles, listMedia, MEDIA_RE } from '../lib/store.js';
 
 const ALLOWED_TYPES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -19,6 +20,14 @@ async function requireAdmin(request) {
 }
 
 const handlers = route({
+  async GET(request) {
+    await requireAdmin(request);
+    const items = (await listMedia())
+      .filter((it) => MEDIA_RE.test(it.pathname))
+      .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)));
+    return json({ items });
+  },
+
   async POST(request) {
     assertSameOrigin(request);
     const body = await request.json().catch(() => null);
@@ -72,6 +81,7 @@ const handlers = route({
   },
 });
 
+export const GET = handlers.GET;
 export const POST = handlers.POST;
 export const DELETE = handlers.DELETE;
 export const PUT = handlers.PUT;

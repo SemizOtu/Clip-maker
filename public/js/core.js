@@ -267,18 +267,22 @@ export function toast(msg, { error = false, ms = 3400 } = {}) {
   toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+// Sonuç: “yes” → true, “no” → false, pencere kapatılırsa (dışına dokunma / Esc) → null
 export function dialog({ icon = '💌', title = '', text = '', yes = 'Tamam', no = null, wide = false, body = null } = {}) {
   return new Promise((resolve) => {
     const prevFocus = document.activeElement;
     const back = h('div', { class: 'dialog-back no-burst' });
+    let finished = false;
     const done = (v) => {
+      if (finished) return;
+      finished = true;
       back.classList.add('closing');
       setTimeout(() => back.remove(), 220);
       document.removeEventListener('keydown', onKey, true);
       if (prevFocus && prevFocus.focus) prevFocus.focus({ preventScroll: true });
       resolve(v);
     };
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } };
     const box = h('div', { class: `dialog${wide ? ' wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title || text || 'Pencere' },
       icon ? h('div', { class: 'dialog-icon', 'aria-hidden': 'true' }, icon) : null,
       title ? h('h3', { class: 'dialog-title' }, title) : null,
@@ -288,7 +292,7 @@ export function dialog({ icon = '💌', title = '', text = '', yes = 'Tamam', no
         no ? h('button', { class: 'link-btn', type: 'button', onclick: () => done(false) }, no) : null,
         yes ? h('button', { class: 'btn', type: 'button', onclick: () => done(true) }, yes) : null));
     back.append(box);
-    back.addEventListener('click', (e) => { if (e.target === back) done(false); });
+    back.addEventListener('click', (e) => { if (e.target === back) done(null); });
     document.addEventListener('keydown', onKey, true);
     document.body.append(back);
     const focusEl = $('.btn', box) || $('button', box);

@@ -152,7 +152,8 @@ body.editing .flip { cursor: default; }
 
 /* Fotoğraf yuvası düğmeleri */
 body.editing .slot.empty { cursor: pointer; }
-.ed-photo-btns { position: absolute; left: 50%; bottom: 10px; z-index: 5; display: flex; gap: 6px; translate: -50% 0; white-space: nowrap; }
+.ed-photo-btns { position: absolute; left: 50%; bottom: 10px; z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: max-content; max-width: calc(100% - 12px); translate: -50% 0; }
+.ed-photo-btns .ed-photo-btn { white-space: nowrap; }
 .heart-wrap > .ed-photo-btns { bottom: 16%; }
 .ed-photo-btn {
   border: 0;
@@ -446,6 +447,21 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-checklist li.done .ed-cl-ic { background: #2fa36b; color: #fff; box-shadow: none; }
 .ed-checklist li.tip .ed-cl-ic { box-shadow: none; background: transparent; }
 .ed-cl-t { flex: 1; font-size: .9rem; }
+
+/* Yüklediklerim */
+.ed-lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+.ed-lib-item { margin: 0; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff7f9; box-shadow: inset 0 0 0 1.5px #fbd0dc; }
+.ed-lib-item.used { box-shadow: inset 0 0 0 2px #2fa36b; }
+.ed-lib-item img { width: 100%; aspect-ratio: 1; object-fit: cover; background: linear-gradient(140deg, #ffe7ee, #ffc9d7); }
+.ed-lib-audio { display: grid; place-items: center; gap: 6px; aspect-ratio: 1; padding: 10px; background: linear-gradient(140deg, #4a0a22, #9d1540); }
+.ed-lib-audio span { font-size: 2.2rem; }
+.ed-lib-audio audio { width: 100%; height: 32px; }
+.ed-lib-item figcaption { display: grid; gap: 4px; padding: 8px; }
+.ed-lib-item small { font-size: .7rem; color: var(--ink-soft); }
+.ed-lib-tag { justify-self: start; padding: 2px 8px; border-radius: 999px; background: #fde8ec; color: #b4123f; font-size: .68rem; font-weight: 700; }
+.ed-lib-tag.on { background: #e5f7ec; color: #1f7a4c; }
+.ed-lib-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.ed-lib-modal .ed-b.primary[hidden] { display: none; }
 
 /* Gelen kutusu */
 .ed-inbox { display: grid; gap: 10px; }

@@ -12,16 +12,23 @@ const S = {
   queued: false,
   preview: false,
   timer: 0,
-  pending: new Set(),
+  draftTimer: 0,
+  savedAt: null,
   local: false,
   inbox: { items: [], unread: 0, readAt: null },
   busyUploads: 0,
+  channel: null,
+  warnedTabs: false,
+  media: null,
+  orphanAsked: false,
 };
 
 const MAX_PHOTO_PX = 2000;
 const PHOTO_QUALITY = 0.86;
 const MAX_MUSIC_MB = 30;
-const AUTOSAVE_MS = 5000;
+const AUTOSAVE_MS = 4000;
+// Kaydedilemeyen değişikliklerin tarayıcıdaki yedeği
+const DRAFT_KEY = 'ds:ed:taslak';
 
 const LISTS = {
   'home.rotating': { add: '+ Kelime', make: () => 'yeni kelime', compact: true },
@@ -128,16 +135,17 @@ function loginScreen({ setup }) {
 /* ------------------------------------------------------------------ */
 const serialize = () => JSON.stringify(app.content);
 const isDirty = () => serialize() !== S.baseline;
+const clock = (d) => d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
 function setStatus(kind, text) {
   const bar = $('.ed-bar');
   if (!bar) return;
   const labels = {
-    saved: 'Her şey kaydedildi',
+    saved: S.savedAt ? `Kaydedildi ✓ ${clock(S.savedAt)}` : 'Her şey kaydedildi',
     dirty: 'Kaydedilmemiş değişiklik var',
     saving: 'Kaydediliyor…',
     uploading: 'Yükleniyor…',
-    error: 'Kaydedilemedi — dokun',
+    error: 'Kaydedilemedi — tekrar dene',
   };
   bar.dataset.state = kind;
   $('.ed-status-text', bar).textContent = text || labels[kind] || '';
@@ -149,8 +157,26 @@ function refreshStatus() {
   return setStatus(isDirty() ? 'dirty' : 'saved');
 }
 
+/* Taslak: kaydedilemeyen değişiklikler tarayıcıda saklanır, sayfa yenilense de kaybolmaz */
+function writeDraft() {
+  clearTimeout(S.draftTimer);
+  if (isDirty()) store.set(DRAFT_KEY, JSON.stringify({ text: serialize(), at: new Date().toISOString() }));
+  else store.remove(DRAFT_KEY);
+}
+
+function readDraft() {
+  try {
+    const d = JSON.parse(store.get(DRAFT_KEY) || 'null');
+    return d && typeof d.text === 'string' ? d : null;
+  } catch {
+    return null;
+  }
+}
+
 function markDirty() {
   refreshStatus();
+  clearTimeout(S.draftTimer);
+  S.draftTimer = setTimeout(writeDraft, 300);
   clearTimeout(S.timer);
   S.timer = setTimeout(() => { if (isDirty() && !S.busyUploads) save({ quiet: true }); }, AUTOSAVE_MS);
 }
@@ -160,10 +186,12 @@ async function reauth() {
   await loginScreen({ setup: false });
 }
 
-async function save({ quiet = false } = {}) {
+// Bütün kayıtlar buradan ve sırayla geçer (aynı anda iki kayıt gitmez)
+async function save({ quiet = false, force = false, keepalive = false } = {}) {
   clearTimeout(S.timer);
   if (S.saving) { S.queued = true; return false; }
   if (!isDirty()) {
+    store.remove(DRAFT_KEY);
     refreshStatus();
     if (!quiet) toast('Her şey zaten kaydedildi ✓');
     return true;
@@ -172,65 +200,119 @@ async function save({ quiet = false } = {}) {
   setStatus('saving');
   const text = serialize();
   let ok = false;
+  let conflict = false;
   try {
-    const data = await api('/api/content', { method: 'PUT', body: { content: app.content, etag: S.etag } });
+    const data = await api('/api/content', {
+      method: 'PUT',
+      body: { content: JSON.parse(text), etag: S.etag, force },
+      keepalive: keepalive && text.length < 60_000,
+    });
     S.etag = data.etag;
     S.baseline = text;
+    S.savedAt = new Date();
     ok = true;
-    cleanupPending();
+    writeDraft();
+    if (S.channel) S.channel.postMessage({ type: 'kaydedildi', etag: S.etag, text });
     if (!quiet) toast('Kaydedildi! Sena artık bu hâlini görüyor 💖', { ms: 3200 });
   } catch (e) {
     console.error(e);
     if (e.status === 401) {
       S.saving = false;
       await reauth();
-      return save({ quiet });
+      return save({ quiet, force });
     }
-    if (e.status === 409) {
-      const reload = await dialog({
-        icon: '⚠️',
-        text: 'Site başka bir sekmede ya da cihazda değiştirilmiş. En son hâli yükleyelim mi? (Buradaki kaydedilmemiş değişiklikler kaybolur.)',
-        yes: 'Yenile',
-        no: 'Vazgeç',
-      });
-      if (reload) { S.baseline = serialize(); location.reload(); }
-    } else {
-      toast(explain(e), { error: true, ms: 7000 });
+    if (e.status === 409) conflict = true;
+    else {
+      S.lastError = explain(e);
+      if (!keepalive) toast(`${S.lastError} Değişikliklerin bu cihazda saklandı.`, { error: true, ms: 7000 });
     }
-    S.lastError = explain(e);
   } finally {
     S.saving = false;
   }
+  if (conflict && !keepalive) return resolveConflict({ quiet });
   if (ok) refreshStatus(); else setStatus('error');
   if (S.queued) { S.queued = false; save({ quiet: true }); }
   return ok;
 }
 
-// Kaydedilmeden vazgeçilen yüklemeleri depodan sil
-function mediaInContent() {
+// Başka sekmede/cihazda kaydedilmiş: varsayılan olarak buradaki hâl korunur
+async function resolveConflict({ quiet }) {
+  setStatus('error', 'Başka yerde kaydedilmiş');
+  const choice = await dialog({
+    icon: '⚠️',
+    title: 'Site başka bir yerde de kaydedilmiş',
+    text: 'Düzenleme modu başka bir sekmede ya da cihazda da açık olabilir. “Buradakini kaydet” dersen şu an gördüğün hâl kaydedilir; diğer yerde yapılan son değişikliklerin üzerine yazılır.',
+    yes: 'Buradakini kaydet',
+    no: 'Diğerini aç',
+  });
+  if (choice === true) return save({ quiet, force: true });
+  if (choice === false) {
+    const sure = await dialog({
+      icon: '🗑️',
+      text: 'Bu sayfada yaptığın kaydedilmemiş değişiklikler silinecek ve en son kaydedilen hâl açılacak. Emin misin?',
+      yes: 'Evet, en sonkini aç',
+      no: 'Vazgeç',
+    });
+    if (sure === true) {
+      const data = await api('/api/content?duzenle=1');
+      S.etag = data.etag;
+      app.setContent(data.content);
+      S.baseline = serialize();
+      store.remove(DRAFT_KEY);
+      app.rerender();
+      refreshStatus();
+      toast('En son kaydedilen hâl açıldı.');
+      return false;
+    }
+  }
+  setStatus('error', 'Kaydedilmedi — 💾 ile tekrar dene');
+  toast('Değişikliklerin bu cihazda saklanıyor; 💾 Kaydet ile tekrar deneyebilirsin.', { ms: 5000 });
+  return false;
+}
+
+// Aynı tarayıcıda birden fazla düzenleme sekmesi açıksa birbirinden haberdar olsunlar
+function setupTabs() {
+  if (!('BroadcastChannel' in window)) return;
+  const ch = new BroadcastChannel('ds-duzenle');
+  S.channel = ch;
+  const warn = () => {
+    if (S.warnedTabs) return;
+    S.warnedTabs = true;
+    toast('Düzenleme modu başka bir sekmede de açık. Karışmaması için sadece birinden düzenle.', { ms: 6500 });
+  };
+  ch.onmessage = (e) => {
+    const m = e.data || {};
+    if (m.type === 'merhaba') { ch.postMessage({ type: 'buradayim' }); warn(); }
+    if (m.type === 'buradayim') warn();
+    if (m.type === 'kaydedildi' && m.etag && typeof m.text === 'string') {
+      // Bu sekmede bekleyen değişiklik yoksa öbür sekmenin kaydettiği hâle geç
+      if (!isDirty() && !S.saving && !S.busyUploads) {
+        S.etag = m.etag;
+        app.setContent(JSON.parse(m.text));
+        S.baseline = m.text;
+        app.rerender();
+        refreshStatus();
+      }
+    }
+  };
+  ch.postMessage({ type: 'merhaba' });
+}
+
+function mediaInContent(value = app.content) {
   const out = new Set();
   const walk = (v) => {
     if (typeof v === 'string') { if (v.startsWith('medya/')) out.add(v); } else if (Array.isArray(v)) v.forEach(walk);
     else if (v && typeof v === 'object') Object.values(v).forEach(walk);
   };
-  walk(app.content);
+  walk(value);
   return out;
-}
-
-function cleanupPending() {
-  const used = mediaInContent();
-  for (const p of [...S.pending]) {
-    if (used.has(p)) { S.pending.delete(p); continue; }
-    S.pending.delete(p);
-    api(`/api/upload?p=${encodeURIComponent(p)}`, { method: 'DELETE' }).catch(() => {});
-  }
 }
 
 /* ------------------------------------------------------------------ */
 /* Yazı düzenleme                                                      */
 /* ------------------------------------------------------------------ */
 function readText(el) {
-  let v = (el.innerText || '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
+  let v = (el.innerText || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n');
   if (el.hasAttribute('data-multiline')) v = v.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   else v = v.replace(/\s*\n\s*/g, ' ').trim();
   return v;
@@ -389,7 +471,6 @@ async function uploadPhotoTo(path, blob, w, hgt, slot) {
   try {
     const pathname = await uploadBlob(blob, `foto-${w}x${hgt}-${stamp()}.jpg`, (p) => prog.set(p));
     app.setLocalUrl(pathname, URL.createObjectURL(blob));
-    S.pending.add(pathname);
     setPath(app.content, path, pathname);
     return pathname;
   } finally {
@@ -439,7 +520,6 @@ async function addGalleryPhotos() {
       const { blob, w, h: hgt } = await shrink(files[n]);
       const pathname = await uploadBlob(blob, `foto-${w}x${hgt}-${stamp()}.jpg`, (p) => setBar(n, p));
       app.setLocalUrl(pathname, URL.createObjectURL(blob));
-      S.pending.add(pathname);
       // Önce fotoğrafı olmayan (örnek yazılı) kutuları doldur, sonra sona ekle
       const empty = list.find((it) => it && !it.photo);
       if (empty) empty.photo = pathname;
@@ -584,7 +664,6 @@ async function pickMusic(onChange) {
       $('span', bar).textContent = `%${Math.round(p)}`;
     });
     app.setLocalUrl(pathname, URL.createObjectURL(file));
-    S.pending.add(pathname);
     const music = app.content.site.music || (app.content.site.music = { src: '', title: '', artist: '' });
     music.src = pathname;
     if (!music.title || music.title === 'Bizim Şarkımız') music.title = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
@@ -609,6 +688,10 @@ function decoratePhoto(slot) {
   host.append(h('div', { class: 'ed-ui ed-photo-btns' },
     h('button', { type: 'button', class: 'ed-photo-btn', onclick: (e) => { e.stopPropagation(); pickPhoto(path, aspects, slot); } },
       has ? '📷 Değiştir' : '📷 Fotoğraf seç'),
+    h('button', {
+      type: 'button', class: 'ed-photo-btn', title: 'Daha önce yüklediklerimden seç', 'aria-label': 'Daha önce yüklediklerimden seç',
+      onclick: (e) => { e.stopPropagation(); pickFromLibrary(path); },
+    }, '🖼️'),
     has ? h('button', { type: 'button', class: 'ed-photo-btn ed-photo-del', title: 'Fotoğrafı kaldır', onclick: (e) => { e.stopPropagation(); removePhoto(path); } }, 'Kaldır') : null));
   if (!has) {
     slot.addEventListener('click', (e) => {
@@ -728,6 +811,12 @@ function decorate() {
   if (intro && !$('.ed-intro-tools', intro)) {
     intro.append(h('div', { class: 'ed-ui ed-inline-tools ed-intro-tools' },
       h('button', { type: 'button', class: 'ed-b', onclick: () => openSettings('lock') }, '🔒 Özel kilit')));
+  }
+  const galleryHead = $('#ch-gallery .ch-head');
+  if (galleryHead && !$('.ed-gallery-tools', galleryHead)) {
+    galleryHead.append(h('div', { class: 'ed-ui ed-inline-tools ed-gallery-tools' },
+      h('button', { type: 'button', class: 'ed-b primary', onclick: () => addGalleryPhotos() }, '📷 Fotoğraf yükle'),
+      h('button', { type: 'button', class: 'ed-b', onclick: () => openLibrary() }, '🖼️ Yüklediklerim')));
   }
 }
 
@@ -907,7 +996,24 @@ function openSettings(focus) {
       h('h4', {}, '🎵 Şarkımız'),
       musicInfo,
       h('div', { class: 'ed-row' },
-        h('button', { type: 'button', class: 'ed-b primary', onclick: () => pickMusic(updateMusicInfo) }, '🎵 Şarkı seç (MP3/M4A)'),
+        h('button', { type: 'button', class: 'ed-b primary', onclick: () => pickMusic(updateMusicInfo) }, '🎵 Şarkı yükle (MP3/M4A)'),
+        h('button', {
+          type: 'button', class: 'ed-b',
+          onclick: () => openLibrary({
+            pick: {
+              audio: true,
+              onPick: (p) => {
+                const music = c.site.music || (c.site.music = { src: '', title: '', artist: '' });
+                music.src = p;
+                app.rerender();
+                markDirty();
+                save({ quiet: true });
+                updateMusicInfo();
+                toast('Şarkımız ayarlandı 🎵');
+              },
+            },
+          }),
+        }, '🖼️ Yüklediklerimden'),
         h('button', {
           type: 'button', class: 'ed-b danger',
           onclick: () => { if (c.site.music) c.site.music.src = ''; app.rerender(); markDirty(); updateMusicInfo(); },
@@ -1006,6 +1112,7 @@ function checklist() {
     { done: (c.story.items || []).some((it) => it.photo), text: '“Hikâyemiz”deki anılara fotoğraf ve tarih ekle', go: () => app.go('story') },
     { done: Boolean(c.site.music && c.site.music.src), text: 'Şarkınızı ekle (zarf açılınca çalar)', go: () => openSettings('music') },
     { done: Boolean(c.finale.photo), text: 'Final bölümündeki kalbe bir fotoğraf koy', go: () => app.go('finale') },
+    { tip: true, text: 'Daha önce yüklediğin bütün fotoğraf ve şarkılar “🖼️ Yüklediklerim”de', go: () => openLibrary() },
     { tip: true, text: 'Mektubu kendi cümlelerinle kişiselleştir', go: () => app.go('letter') },
     { tip: true, text: 'Sınav sorularını ikinize göre düzenle (✓ ile doğru cevabı seç)', go: () => app.go('quiz') },
     { tip: true, text: 'İstersen WhatsApp numaranı ve özel kilidi ayarla', go: () => openSettings('notify') },
@@ -1127,6 +1234,164 @@ async function openInbox() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Yüklediklerim: depodaki bütün fotoğraf ve şarkılar                  */
+/* ------------------------------------------------------------------ */
+const isAudio = (p) => /\.(mp3|m4a|aac|ogg|oga|wav)$/i.test(p);
+const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+async function loadMedia() {
+  const data = await api('/api/upload');
+  S.media = Array.isArray(data.items) ? data.items : [];
+  return S.media;
+}
+
+function addPhotosToGallery(paths) {
+  const list = getPath(app.content, 'gallery.items') || [];
+  for (const p of paths) {
+    const empty = list.find((it) => it && !it.photo);
+    if (empty) empty.photo = p; else list.push({ photo: p, caption: '' });
+  }
+  setPath(app.content, 'gallery.items', list);
+  app.rerender();
+  markDirty();
+}
+
+// pick: { audio: bool, onPick(pathname) } → seçim penceresi olarak açılır
+async function openLibrary({ pick = null } = {}) {
+  const grid = h('div', { class: 'ed-lib-grid' }, h('p', { class: 'ed-note' }, 'Yükleniyor…'));
+  const summary = h('p', { class: 'ed-note' });
+  const bulk = h('button', { type: 'button', class: 'ed-b primary', hidden: true });
+  let m;
+  const render = () => {
+    const used = mediaInContent();
+    const items = (S.media || []).filter((it) => (pick ? isAudio(it.pathname) === Boolean(pick.audio) : true));
+    grid.textContent = '';
+    const unusedPhotos = items.filter((it) => !used.has(it.pathname) && !isAudio(it.pathname));
+    summary.textContent = items.length
+      ? `${items.length} dosya · ${items.filter((it) => !used.has(it.pathname)).length} tanesi sitede kullanılmıyor`
+      : (pick ? 'Henüz yüklenmiş dosya yok.' : 'Henüz hiç fotoğraf ya da şarkı yüklenmemiş.');
+    bulk.hidden = Boolean(pick) || !unusedPhotos.length;
+    bulk.textContent = `📸 Kullanılmayan ${unusedPhotos.length} fotoğrafı Anılarımız’a ekle`;
+    bulk.onclick = () => {
+      addPhotosToGallery(unusedPhotos.map((it) => it.pathname));
+      save({ quiet: true });
+      toast(`${unusedPhotos.length} fotoğraf Anılarımız’a eklendi 📸`, { ms: 4000 });
+      render();
+    };
+    for (const it of items) {
+      const p = it.pathname;
+      const inUse = used.has(p);
+      const audio = isAudio(p);
+      const preview = audio
+        ? h('div', { class: 'ed-lib-audio' }, h('span', { 'aria-hidden': 'true' }, '🎵'), h('audio', { controls: true, preload: 'none', src: app.mediaUrl(p) }))
+        : h('img', { src: app.mediaUrl(p), alt: '', loading: 'lazy', decoding: 'async' });
+      const actions = [];
+      if (pick) {
+        actions.push(h('button', { type: 'button', class: 'ed-b small primary', onclick: () => { m.close(); pick.onPick(p); } }, 'Bunu seç'));
+      } else if (!inUse) {
+        if (audio) {
+          actions.push(h('button', {
+            type: 'button', class: 'ed-b small primary',
+            onclick: () => {
+              const music = app.content.site.music || (app.content.site.music = { src: '', title: '', artist: '' });
+              music.src = p;
+              app.rerender();
+              markDirty();
+              save({ quiet: true });
+              toast('Şarkımız ayarlandı 🎵');
+              render();
+            },
+          }, 'Şarkı yap'));
+        } else {
+          actions.push(h('button', {
+            type: 'button', class: 'ed-b small primary',
+            onclick: () => { addPhotosToGallery([p]); save({ quiet: true }); toast('Anılarımız’a eklendi 📸'); render(); },
+          }, 'Anılar’a ekle'));
+        }
+        actions.push(h('button', {
+          type: 'button', class: 'ed-b small danger',
+          onclick: async () => {
+            const ok = await dialog({ icon: '🗑️', text: 'Bu dosya kalıcı olarak silinsin mi? Geri alınamaz.', yes: 'Evet, sil', no: 'Vazgeç' });
+            if (ok !== true) return;
+            try {
+              const r = await api(`/api/upload?p=${encodeURIComponent(p)}`, { method: 'DELETE' });
+              if (r.kept) { toast('Bu dosya sitede kullanıldığı için silinmedi.'); return; }
+              S.media = (S.media || []).filter((x) => x.pathname !== p);
+              render();
+            } catch (e) { toast(explain(e), { error: true }); }
+          },
+        }, 'Sil'));
+      }
+      grid.append(h('figure', { class: `ed-lib-item${inUse ? ' used' : ''}` },
+        preview,
+        h('figcaption', {},
+          h('span', { class: `ed-lib-tag${inUse ? ' on' : ''}` }, inUse ? '✓ Sitede' : 'Sitede değil'),
+          h('small', {}, `${relTime(it.uploadedAt)} · ${fmtSize(it.size || 0)}`),
+          actions.length ? h('div', { class: 'ed-lib-actions' }, actions) : null)));
+    }
+  };
+  m = modal({
+    title: pick ? (pick.audio ? '🎵 Yüklediğin şarkılardan seç' : '🖼️ Yüklediğin fotoğraflardan seç') : '🖼️ Yüklediklerim',
+    wide: true,
+    cls: 'ed-lib-modal',
+    body: [
+      pick ? null : h('p', { class: 'ed-note' }, 'Bugüne kadar yüklediğin bütün fotoğraf ve şarkılar burada. Sitede kullanılmayanları tekrar ekleyebilir ya da silebilirsin.'),
+      summary,
+      bulk,
+      grid,
+    ],
+    actions: [h('button', { type: 'button', class: 'ed-b primary', onclick: () => m.close() }, 'Kapat')],
+  });
+  try {
+    await loadMedia();
+    render();
+  } catch (e) {
+    grid.textContent = '';
+    grid.append(h('p', { class: 'ed-warn' }, explain(e)));
+  }
+}
+
+function pickFromLibrary(path) {
+  openLibrary({
+    pick: {
+      audio: false,
+      onPick: (p) => {
+        setPath(app.content, path, p);
+        app.rerender();
+        markDirty();
+        save({ quiet: true });
+        toast('Fotoğraf yerleştirildi ❤');
+      },
+    },
+  });
+}
+
+// Daha önce yüklenip siteye kaydedilemeyen dosyaları bir kez haber ver
+async function checkOrphans() {
+  let items;
+  try { items = await loadMedia(); } catch { return; }
+  const used = mediaInContent();
+  const orphans = items.filter((it) => !used.has(it.pathname));
+  if (!orphans.length) return;
+  const sig = orphans.map((o) => o.pathname).sort().join('|');
+  if (store.get('ds:ed:sahipsiz') === sig || S.orphanAsked) return;
+  S.orphanAsked = true;
+  const photos = orphans.filter((o) => !isAudio(o.pathname)).length;
+  const songs = orphans.length - photos;
+  const parts = [photos ? `${photos} fotoğraf` : '', songs ? `${songs} şarkı` : ''].filter(Boolean).join(' ve ');
+  const ok = await dialog({
+    icon: '📸',
+    title: 'Siteye eklenmemiş dosyalar var',
+    text: `Daha önce yüklediğin ${parts} şu an sitede kullanılmıyor (kaydedilemediği için ya da sen kaldırdığın için). Bakıp geri eklemek ister misin?`,
+    yes: 'Göster',
+    no: 'Sonra',
+  });
+  // Sadece cevap verilince “soruldu” say; sayfa kapanırsa bir dahaki sefere yine sorulsun
+  store.set('ds:ed:sahipsiz', sig);
+  if (ok === true) openLibrary();
+}
+
+/* ------------------------------------------------------------------ */
 /* Alt araç çubuğu                                                     */
 /* ------------------------------------------------------------------ */
 function buildBar() {
@@ -1196,10 +1461,12 @@ export async function startEditor(appApi) {
   document.addEventListener('click', onPageClick);
   decorate();
   refreshStatus();
+  setupTabs();
   loadCropper().catch(() => {});
   loadInbox();
 
   window.addEventListener('beforeunload', (e) => {
+    if (isDirty()) writeDraft();
     if (isDirty() || S.saving || S.busyUploads) {
       e.preventDefault();
       e.returnValue = '';
@@ -1208,23 +1475,44 @@ export async function startEditor(appApi) {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && isDirty() && !S.saving && !S.busyUploads) {
-      const body = { content: app.content, etag: S.etag };
-      if (JSON.stringify(body).length < 60_000) {
-        api('/api/content', { method: 'PUT', body, keepalive: true })
-          .then((d) => { S.etag = d.etag; S.baseline = serialize(); refreshStatus(); })
-          .catch(() => {});
-      } else {
-        save({ quiet: true });
+  // Sekme/uygulama değişince bekleyen değişiklikleri kaydet (normal kayıt sırasına girer)
+  const flush = () => {
+    if (!isDirty()) return;
+    writeDraft();
+    if (!S.busyUploads) save({ quiet: true, keepalive: true });
+  };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+  window.addEventListener('pagehide', flush);
+
+  // Önceki oturumdan kalan, kaydedilememiş değişiklikler var mı?
+  const draft = readDraft();
+  if (draft && draft.text !== S.baseline) {
+    const when = relTime(draft.at);
+    const ok = await dialog({
+      icon: '📝',
+      title: 'Kaydedilmemiş değişikliklerin bulundu',
+      text: `${when ? `${when} ` : ''}yaptığın ama kaydedilemeyen değişiklikler bu cihazda duruyor. Geri yükleyip kaydedelim mi?`,
+      yes: 'Evet, geri yükle',
+      no: 'Hayır, sil',
+    });
+    if (ok === true) {
+      try {
+        app.setContent(JSON.parse(draft.text));
+        app.rerender();
+        await save({ quiet: false });
+      } catch {
+        toast('Taslak açılamadı.', { error: true });
       }
+    } else if (ok === false) {
+      store.remove(DRAFT_KEY);
     }
-  });
+  }
 
   if (firstTime || !store.get('ds:ed:hosgeldin')) {
     store.set('ds:ed:hosgeldin', '1');
     setTimeout(() => openChecklist({ welcome: true }), 500);
   } else {
     toast('Düzenleme modu açık ✏️ Yazılara dokunarak değiştirebilirsin.');
+    setTimeout(checkOrphans, 1200);
   }
 }

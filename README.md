@@ -21,9 +21,12 @@ kalp şeklinde havai fişeklerle biten bir final içerir.
 
 ## ✏️ Düzenleme modu
 
-- **Yazılar:** Kesik çizgili her yazıya dokunup değiştir. Birkaç saniye içinde kendiliğinden kaydedilir (istersen 💾 Kaydet’e de basabilirsin).
-- **Fotoğraflar:** “📷 Fotoğraf seç” → fotoğrafı seç → kırp → “Kırp ve ekle”. Fotoğraflar otomatik küçültülür (en fazla 2000 px) ve anında kaydedilir.
-- **Toplu fotoğraf:** “Anılarımız” bölümündeki “📷 Fotoğraf ekle” ile birden fazla fotoğrafı tek seferde yükleyebilirsin; önce boş kutular dolar, sonra yenileri eklenir.
+- **Yazılar:** Kesik çizgili her yazıya dokunup değiştir. Birkaç saniye içinde kendiliğinden kaydedilir (istersen 💾 Kaydet’e de basabilirsin). Alttaki durum yazısı son kayıt saatini gösterir.
+- **Fotoğraflar:** “📷 Fotoğraf seç” → fotoğrafı seç → kırp → “Kırp ve ekle”. Fotoğraflar otomatik küçültülür (en fazla 2000 px) ve anında kaydedilir. Yanındaki 🖼️ ile daha önce yüklediğin bir fotoğrafı seçebilirsin.
+- **Toplu fotoğraf:** “Anılarımız” bölümündeki “📷 Fotoğraf yükle” ile birden fazla fotoğrafı tek seferde yükleyebilirsin; önce boş kutular dolar, sonra yenileri eklenir.
+- **🖼️ Yüklediklerim:** Bugüne kadar yüklediğin bütün fotoğraf ve şarkılar. Siteden kaldırdığın fotoğraflar silinmez, burada durur; tekrar ekleyebilir ya da kalıcı olarak silebilirsin. Siteye eklenmemiş dosya varsa düzenleme modu açılırken haber verir.
+- **Kaydedilemeyen değişiklikler:** İnternet kesilse ya da kayıt başarısız olsa bile değişikliklerin o cihazda saklanır; sayfayı tekrar açtığında geri yüklemeyi teklif eder.
+- **Tek sekmeden düzenle:** Düzenleme modu iki sekmede/cihazda açıksa uyarır. Başka yerde kaydedilmiş bir hâl varsa “Buradakini kaydet” ile o an gördüğün hâli kaydedebilirsin.
 - **Listeler:** “+ Ekle” butonları; ↑ ↓ ile sırala, ✕ ile sil.
 - **Bölümler:** Her bölümün üstündeki anahtarla bölümü gizleyebilirsin; Sena gizli bölümleri görmez.
 - **Sınav:** Her şıkkın solundaki yuvarlağa dokunarak doğru cevabı seç.

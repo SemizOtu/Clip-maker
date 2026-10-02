@@ -1,12 +1,15 @@
 // GET  /api/content            → ziyaretçi için içerik (kilitliyse sadece kapak)
 // GET  /api/content?duzenle=1  → düzenleme için tam içerik (şifre gerekli)
 // PUT  /api/content            → düzenlemeleri kaydeder (şifre gerekli)
+//      { content, etag, force }  force:true → başka yerde kaydedilmiş olsa da üzerine yazar
 import { json, readJsonBody, assertSameOrigin, route } from '../lib/http.js';
 import {
-  loadContent, saveContent, validateContent, publicView, lockedView, mediaRefs,
+  loadContent, saveContent, validateContent, publicView, lockedView,
 } from '../lib/content.js';
 import { isAdmin, canView } from '../lib/session.js';
-import { removeFiles, ConflictError } from '../lib/store.js';
+import { ConflictError } from '../lib/store.js';
+
+const CONFLICT = 'Site bu arada başka bir sekmede ya da cihazda kaydedilmiş.';
 
 const handlers = route({
   async GET(request) {
@@ -28,10 +31,11 @@ const handlers = route({
     if (!(await isAdmin(request))) return json({ error: 'Oturumun kapanmış; tekrar giriş yap.' }, 401);
     const body = await readJsonBody(request, 1_000_000);
     const next = validateContent(body.content);
+    const force = body.force === true;
     const current = await loadContent({ fresh: true });
 
-    if (current.etag && body.etag !== current.etag) {
-      return json({ error: 'Site başka bir yerden değiştirilmiş. Sayfayı yenileyip tekrar dene.', conflict: true }, 409);
+    if (!force && current.etag && body.etag !== current.etag) {
+      return json({ error: CONFLICT, conflict: true }, 409);
     }
     if (current.etag && JSON.stringify(current.value) === JSON.stringify(next)) {
       return json({ ok: true, etag: current.etag, unchanged: true });
@@ -39,21 +43,13 @@ const handlers = route({
 
     let saved;
     try {
-      saved = await saveContent(next, current.etag);
+      saved = await saveContent(next, { etag: current.etag, force });
     } catch (e) {
-      if (e instanceof ConflictError) {
-        return json({ error: 'Site başka bir yerden değiştirilmiş. Sayfayı yenileyip tekrar dene.', conflict: true }, 409);
-      }
+      if (e instanceof ConflictError) return json({ error: CONFLICT, conflict: true }, 409);
       throw e;
     }
-
-    // Artık kullanılmayan fotoğraf ve şarkıları depodan temizle
-    const before = mediaRefs(current.value);
-    const after = mediaRefs(next);
-    const removed = [...before].filter((p) => !after.has(p));
-    if (removed.length) {
-      try { await removeFiles(removed); } catch (e) { console.warn('Eski dosyalar silinemedi:', e); }
-    }
+    // Not: Kullanılmayan fotoğraflar burada silinmez; “Yüklediklerim”de durur,
+    // Deniz isterse oradan geri ekler ya da kendisi siler.
     return json({ ok: true, etag: saved.etag });
   },
 });
