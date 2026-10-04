@@ -12,7 +12,7 @@ import { allow, randomHex } from '../lib/security.js';
 const INBOX_PATH = 'ozel/gelen-kutusu.json';
 const KEEP = 300;
 // tür → en fazla yazı uzunluğu
-const TYPES = { not: 2000, hayal: 600, kupon: 300, mektup: 200, evet: 200, sinav: 300, kazi: 200 };
+const TYPES = { not: 2000, hayal: 600, kupon: 300, mektup: 200, evet: 200, sinav: 300, kazi: 200, gizli: 200 };
 // Bu türler "bildirimler kapalı" olsa da gelir (Sena bilerek yazdı)
 const ALWAYS = new Set(['not', 'hayal']);
 

@@ -831,8 +831,9 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 .cbox { padding: 12px 4px 9px; border-radius: 18px; background: #fff; box-shadow: 0 5px 16px rgba(224, 36, 94, .09); }
 .cbox b { display: block; font-family: var(--f-ui); font-weight: 700; font-size: clamp(1.6rem, 7vw, 2.1rem); line-height: 1.15; color: var(--rose-deep); font-variant-numeric: tabular-nums; }
 .cbox span { font-family: var(--f-ui); font-weight: 600; font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
-.cbox.tick b { animation: tick .45s var(--ease-spring); }
-@keyframes tick { 40% { transform: scale(1.18); color: var(--rose); } }
+.cbox { perspective: 260px; }
+.cbox.tick b { animation: flip-in .55s cubic-bezier(.3, 1.35, .5, 1); transform-origin: 50% 65%; }
+@keyframes flip-in { 0% { transform: rotateX(-100deg); opacity: .15; color: var(--rose); } 55% { opacity: 1; } 100% { transform: none; } }
 .counter-total { margin-top: 14px; font-size: 1.18rem; }
 .counter-total strong { color: var(--rose); font-weight: 700; }
 .counter-next { margin-top: 6px; font-family: var(--f-ui); font-weight: 600; font-size: .9rem; color: var(--rose-deep); }
@@ -902,7 +903,7 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 
 /* ---------- III. Anılarımız ---------- */
 .gallery-tools { display: flex; justify-content: center; margin: -14px 0 22px; }
-.polaroids { columns: 2; column-gap: 14px; max-width: 1060px; margin: 0 auto; }
+.polaroids { --cols: var(--c2, 2); columns: var(--cols); column-gap: 14px; max-width: min(1060px, calc(var(--cols) * 310px)); margin: 0 auto; }
 .polaroid {
   position: relative;
   display: inline-block;
@@ -913,7 +914,7 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
   border-radius: 3px;
   box-shadow: 0 12px 26px rgba(61, 26, 42, .16), 0 2px 5px rgba(61, 26, 42, .08);
   rotate: var(--r, 0deg);
-  transition: rotate .45s var(--ease-spring), scale .45s var(--ease-spring), box-shadow .4s, opacity .9s ease var(--d, 0s), translate 1s var(--ease-out) var(--d, 0s);
+  transition: rotate .45s var(--ease-spring), scale .45s var(--ease-spring), box-shadow .4s, opacity .9s ease var(--d, 0s), translate 1s var(--ease-out) var(--d, 0s), transform .5s var(--ease-out);
   break-inside: avoid;
   -webkit-column-break-inside: avoid;
 }
@@ -1250,6 +1251,8 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 .prize-icon { font-size: 2.4rem; font-style: normal; line-height: 1; }
 .scratch-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; transition: opacity 1s ease; }
 .scratch.done .scratch-canvas { opacity: 0; pointer-events: none; }
+/* Kazıma yüzeyi çizilene kadar hediye görünmesin */
+body:not(.editing) .scratch:not(.armed):not(.done) .scratch-prize { visibility: hidden; }
 .scratch.done .scratch-prize { animation: pop-in .7s var(--ease-spring); }
 .scratch-again { display: block; margin: 10px auto 0; }
 
@@ -1309,7 +1312,7 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 .finale-pre { font-style: italic; font-size: 1.35rem; color: #f7cfdc; }
 .finale-q { margin: 10px auto 0; max-width: 900px; padding: .06em .25em; font-size: clamp(3rem, 12.5vw, 5.6rem); line-height: 1.15; color: #fff; animation: glow-pulse 3s ease-in-out infinite; }
 .finale-btns { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 18px; min-height: 110px; margin: 34px 0 10px; }
-.yes-btn { scale: var(--grow, 1); padding: 17px 38px; font-size: 1.15rem; transition: scale .35s var(--ease-spring), transform .25s var(--ease-spring), box-shadow .25s; }
+.yes-btn { position: relative; scale: var(--grow, 1); padding: 17px 38px; font-size: 1.15rem; transition: scale .35s var(--ease-spring), transform .25s var(--ease-spring), box-shadow .25s; }
 .yes-btn svg { animation: beat 1.4s ease-in-out infinite; }
 .no-btn {
   border: 1px solid rgba(255, 255, 255, .3);
@@ -1387,10 +1390,11 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 .toast.show { opacity: 1; translate: -50% 0; }
 .toast.error { background: rgba(157, 21, 64, .96); }
 
+/* Onay pencereleri her zaman en üstte (düzenleme pencerelerinin de üstünde) */
 .dialog-back {
   position: fixed;
   inset: 0;
-  z-index: 1500;
+  z-index: 1750;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -1426,7 +1430,7 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
 @media (min-width: 640px) {
   .counter-grid { grid-template-columns: repeat(6, 1fr); }
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
-  .polaroids { columns: 3; column-gap: 24px; }
+  .polaroids { --cols: var(--c3, 3); column-gap: 24px; }
   .polaroid { padding: 10px 10px 0; margin: 14px 0 26px; }
   .reasons { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
   .coupons { grid-template-columns: 1fr 1fr; }
@@ -1447,7 +1451,7 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
   .moon { width: 96px; height: 96px; }
 }
 @media (min-width: 1040px) {
-  .polaroids { columns: 4; }
+  .polaroids { --cols: var(--c4, 4); }
   .reasons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 420px) {
@@ -1461,6 +1465,179 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
   .ow-env:hover { transform: none; }
 }
 
+/* =========================================================
+   Efektler (v2)
+   ========================================================= */
+
+/* Yatay taşma olmasın (döndürülmüş süslemeler kenardan taşmasın) */
+#chapters, .chapter { overflow-x: clip; }
+
+/* Masaüstünde kalp imleç */
+@media (pointer: fine) {
+  body:not(.editing) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4.5 6.6 4.5c2.2 0 3.6 1.3 4.4 2.6.8-1.3 2.2-2.6 4.4-2.6 3.7 0 5.7 3.9 4.2 7.3C19.5 16.4 12 21 12 21z' fill='%23ff6b96' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E") 13 12, auto;
+  }
+  body:not(.editing) :is(a, button, [role="button"], label, .flip, .ow-env, .menu-item, .slot[data-zoom] img, .hero-title, .coupon-wrap.used) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4.5 6.6 4.5c2.2 0 3.6 1.3 4.4 2.6.8-1.3 2.2-2.6 4.4-2.6 3.7 0 5.7 3.9 4.2 7.3C19.5 16.4 12 21 12 21z' fill='%23e0245e' stroke='%23fff' stroke-width='1.8'/%3E%3C/svg%3E") 15 14, pointer;
+  }
+  body:not(.editing) :is(input, textarea) { cursor: text; }
+}
+
+/* Gündüz sahnesi: çok yavaş dolaşan pembe ışık */
+.scene-day { overflow: hidden; }
+.scene-day::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(38% 32% at 28% 30%, rgba(255, 186, 208, .42), transparent 70%),
+    radial-gradient(34% 30% at 76% 64%, rgba(255, 214, 178, .38), transparent 70%);
+  animation: aurora 38s ease-in-out infinite alternate;
+}
+@keyframes aurora { 0% { transform: translate(-4%, -2%) rotate(0deg); } 100% { transform: translate(5%, 3%) rotate(8deg); } }
+
+/* Zarf: ışık, eğilme, çatlayan mühür */
+.env-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .6s var(--ease-out);
+}
+.env-stage.tilting { transition: transform .12s linear; }
+.env-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 165%;
+  aspect-ratio: 1;
+  translate: -50% -46%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 234, 180, .95) 0%, rgba(255, 204, 146, .5) 26%, rgba(255, 170, 192, .14) 50%, transparent 66%);
+  opacity: 0;
+  scale: .25;
+  pointer-events: none;
+  transition: opacity .9s ease .2s, scale 1.7s var(--ease-out) .2s;
+}
+.env-glow::after {
+  content: "";
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 242, 206, .34) 0deg 4deg, transparent 4deg 15deg);
+  -webkit-mask: radial-gradient(circle, #000 16%, transparent 66%);
+  mask: radial-gradient(circle, #000 16%, transparent 66%);
+  animation: rays 16s linear infinite;
+}
+@keyframes rays { to { rotate: 360deg; } }
+.intro.opening .env-glow { opacity: 1; scale: 1.15; }
+.intro.opening .env-stage { transform: none; }
+.env-seal.cracked { opacity: 0 !important; animation: none; transition: none; }
+.seal-half { position: fixed; z-index: 900; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(80, 0, 20, .55)); }
+.seal-half svg { display: block; width: 100%; height: 100%; }
+.seal-half.l { clip-path: polygon(-40% -40%, 54% -40%, 54% 0, 47% 20%, 56% 38%, 45% 57%, 55% 76%, 49% 100%, 49% 140%, -40% 140%); animation: crack-l 1.2s cubic-bezier(.45, 0, .8, .2) .05s forwards; }
+.seal-half.r { clip-path: polygon(54% -40%, 140% -40%, 140% 140%, 49% 140%, 49% 100%, 55% 76%, 45% 57%, 56% 38%, 47% 20%, 54% 0); animation: crack-r 1.2s cubic-bezier(.45, 0, .8, .2) .05s forwards; }
+@keyframes crack-l { 0% { transform: none; } 12% { transform: translateX(-4px) rotate(-7deg); } 100% { transform: translate(-70px, 170px) rotate(-58deg); opacity: 0; } }
+@keyframes crack-r { 0% { transform: none; } 12% { transform: translateX(4px) rotate(7deg); } 100% { transform: translate(64px, 186px) rotate(50deg); opacity: 0; } }
+
+/* İsimlerdeki “&” kalp gibi atar */
+.hero-title .ch.amp { color: #f0a640; text-shadow: 0 0 18px rgba(255, 190, 110, .55); }
+.bloom.is-in .ch.amp {
+  animation: bloom 1s var(--ease-out) forwards, amp-beat 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 75ms + .15s), 2.6s;
+}
+@keyframes amp-beat { 0%, 100% { transform: none; } 12% { transform: scale(1.2); } 24% { transform: none; } 36% { transform: scale(1.1); } 48% { transform: none; } }
+body:not(.editing) .hero-title { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+/* iPhone, düğme olmayan öğelere dokunuşu ancak böyle iletir */
+@media (pointer: coarse) {
+  body:not(.editing) :is(.hero-title, .slot[data-zoom] img, .coupon-wrap.used, [data-open-when]) { cursor: pointer; }
+}
+.hero-title.tap { animation: hero-tap .35s ease; }
+@keyframes hero-tap { 40% { transform: scale(1.035); } }
+.secret-hint { margin: 22px auto 0; text-align: center; font-family: var(--f-hand); font-size: 1.3rem; color: rgba(157, 21, 64, .5); }
+
+/* Polaroidler anlık fotoğraf gibi “banyo” olur */
+.polaroid.is-in .slot.loaded img { animation: develop 2.8s cubic-bezier(.3, .1, .3, 1) both; animation-delay: var(--d, 0s); }
+@keyframes develop {
+  0% { filter: brightness(1.8) contrast(.5) saturate(0) sepia(.35) blur(1.6px); }
+  45% { filter: brightness(1.3) contrast(.8) saturate(.45) sepia(.2) blur(.5px); }
+  100% { filter: none; }
+}
+.polaroid[data-tilt].tilting { transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .12s linear, rotate .45s var(--ease-spring), scale .45s var(--ease-spring), box-shadow .4s; }
+
+/* Mektup katlı kâğıt gibi açılır, mühür damga gibi basılır */
+.letter.reveal { translate: none; transform: perspective(1200px) rotateX(-62deg); transform-origin: 50% 0; transition: opacity .9s ease .3s, transform 1.5s cubic-bezier(.2, .8, .25, 1) .3s; }
+.letter.reveal.is-in { transform: none; }
+.letter .letter-seal { opacity: 0; }
+.letter.is-in .letter-seal { animation: stamp .75s cubic-bezier(.5, 0, .6, 1) 1.4s both; }
+.letter.is-in { animation: thud .4s ease 1.97s; }
+@keyframes stamp {
+  0% { opacity: 0; transform: translateY(-50px) scale(2.4) rotate(-16deg); }
+  70% { opacity: 1; transform: translateY(0) scale(.9) rotate(3deg); }
+  85% { transform: scale(1.06); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes thud { 30% { transform: translateY(3px); } 60% { transform: translateY(-1px); } }
+
+/* Sebep kartlarında parıltı */
+.flip-front { position: relative; overflow: hidden; }
+.flip-front::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .5) 45%, rgba(255, 255, 255, .12) 52%, transparent 60%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  animation: sheen 6s ease-in-out infinite;
+  animation-delay: calc(var(--d, 0s) * 14);
+  pointer-events: none;
+}
+@keyframes sheen { 0%, 62% { background-position: 130% 0; } 86%, 100% { background-position: -30% 0; } }
+
+/* “Evet” butonunun etrafında nabız halkası */
+.yes-btn::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid rgba(255, 150, 185, .85);
+  animation: ring 2.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes ring { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+
+/* Gece: kalp takımyıldızı ve kayan yıldızlar */
+.constellation { position: absolute; left: 50%; top: 8vh; width: min(80vw, 470px); translate: -50% 0; overflow: visible; }
+.cs-line { fill: none; stroke: rgba(255, 214, 226, .4); stroke-width: .6; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 3.4s ease-in-out .5s, stroke 1s ease, stroke-width 1s ease; }
+.cs-star { fill: #fff; opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .7s ease, fill 1s ease; transition-delay: calc(var(--i) * .17s + .3s); animation: cs-twinkle 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -.41s); filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(255, 190, 210, .95)); }
+.constellation.draw .cs-line { stroke-dashoffset: 0; }
+.constellation.draw .cs-star { opacity: 1; }
+.constellation.lit .cs-line { stroke: rgba(255, 216, 140, .95); stroke-width: 1; }
+.constellation.lit .cs-star { fill: #fff2c2; }
+@keyframes cs-twinkle { 0%, 100% { transform: scale(.75); } 50% { transform: scale(1.25); } }
+.shoot {
+  position: fixed;
+  z-index: 0;
+  width: 170px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 2px;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 240, 222, .6) 70%, #fff 100%);
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px rgba(255, 214, 150, .9));
+  opacity: 0;
+  animation: shoot var(--dur, 1.1s) cubic-bezier(.3, .55, .45, 1) forwards;
+}
+.shoot.front { z-index: 1450; }
+body:not(.night-mode) .shoot.front { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px rgba(255, 150, 185, .95)); }
+@keyframes shoot {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--a)) scaleX(.15); }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--a)) scaleX(1); }
+}
+
 /* ---------- Hareket azaltma tercihi ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -1470,7 +1647,12 @@ body:not(.at-intro) .topbar-title { opacity: .9; }
     transition-delay: 0s !important;
   }
   .reveal { opacity: 1; translate: none; }
+  .letter.reveal { transform: none; }
+  .letter .letter-seal, .letter.is-in .letter-seal { opacity: 1; animation: none; }
   .words .w { opacity: 1; }
+  .shoot, .seal-half { display: none; }
+  .constellation .cs-line { stroke-dashoffset: 0; }
+  .constellation .cs-star { opacity: 1; }
   .ink { -webkit-mask: none; mask: none; }
   .bloom .ch { opacity: 1; transform: none; filter: none; }
 }

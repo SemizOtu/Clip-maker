@@ -2,7 +2,7 @@
 // kuponlar, final, ışık kutusu, slayt gösterisi ve Deniz'e giden bildirimler
 import {
   state, $, $$, h, rand, reducedMotion, parseDate, diffParts, daysBetween, addMonths,
-  sameDay, dayIndex, fmtNum, store, toast, dialog, heartSvg, mediaUrl, paragraphs, HEART_PATH,
+  sameDay, dayIndex, fmtNum, store, toast, dialog, heartSvg, mediaUrl, paragraphs, HEART_PATH, svg,
 } from './core.js';
 import { splitWords } from './effects.js';
 
@@ -32,12 +32,31 @@ export function statsList(now = new Date()) {
   const ms = since ? Math.max(0, now - since) : 0;
   const days = ms / 86_400_000;
   const months = since && since < now ? diffParts(since, now).y * 12 + diffParts(since, now).mo : 0;
+  const beats = (ms / 60_000) * 72;
   return [
-    { icon: '🌅', value: fmtNum(Math.floor(days)), label: 'gün doğumu' },
-    { icon: '🌕', value: fmtNum(Math.floor(days / 29.530588853)), label: 'dolunay' },
-    { icon: '🍂', value: fmtNum(Math.floor(months / 3)), label: 'mevsim' },
-    { icon: '💓', value: bigNum((ms / 60_000) * 72), label: 'kalp atışı' },
+    { icon: '🌅', n: Math.floor(days), value: fmtNum(Math.floor(days)), label: 'gün doğumu' },
+    { icon: '🌕', n: Math.floor(days / 29.530588853), value: fmtNum(Math.floor(days / 29.530588853)), label: 'dolunay' },
+    { icon: '🍂', n: Math.floor(months / 3), value: fmtNum(Math.floor(months / 3)), label: 'mevsim' },
+    { icon: '💓', n: beats, big: true, value: bigNum(beats), label: 'kalp atışı' },
   ];
+}
+
+// “Sayılarla biz” göründüğünde sayılar sıfırdan yukarı sayar
+export function countUp(root) {
+  const els = [...root.querySelectorAll('[data-n]')];
+  if (!els.length || root.dataset.counted) return;
+  root.dataset.counted = '1';
+  if (reducedMotion) return;
+  const targets = els.map((el) => ({ el, n: Number(el.dataset.n) || 0, big: el.dataset.big === '1', final: el.textContent }));
+  const start = performance.now();
+  const D = 1700;
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / D);
+    const e = 1 - (1 - t) ** 4;
+    for (const it of targets) it.el.textContent = t >= 1 ? it.final : (it.big ? bigNum(it.n * e) : fmtNum(Math.floor(it.n * e)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function birthdayOf(now) {
@@ -114,7 +133,8 @@ export function startCounter(sec) {
       const str = String(v);
       if (b.textContent !== str) {
         b.textContent = str;
-        if (k === 's' && !reducedMotion) {
+        // takvim yaprağı gibi dönerek değişsin
+        if (!reducedMotion && root.dataset.ready) {
           box.classList.remove('tick');
           void box.offsetWidth;
           box.classList.add('tick');
@@ -129,6 +149,7 @@ export function startCounter(sec) {
     next.hidden = !list.length;
   }
   update();
+  root.dataset.ready = '1';
   const timer = setInterval(update, 1000);
   return () => clearInterval(timer);
 }
@@ -259,6 +280,7 @@ export async function initScratch(sec) {
   g.lineCap = 'round';
   g.lineJoin = 'round';
   g.lineWidth = Math.max(34, r.width / 11);
+  wrap.classList.add('armed');
   let drawing = false;
   let last = null;
   let moves = 0;
@@ -510,6 +532,7 @@ export async function submitForm(form) {
   const thanks = kind === 'dream' ? state.content.dreams.suggestThanks : state.content.finale.replyThanks;
   if (kind === 'dream') {
     field.value = '';
+    shootingStar({ front: true });
     toast(res.skipped ? 'Önizleme: gerçekte bu hayal sana gelirdi 💭' : thanks, { ms: 4500 });
   } else {
     form.replaceWith(h('p', { class: 'reply-thanks script' }, res.skipped ? 'Önizleme: gerçekte bu not sana gelirdi 💌' : thanks));
@@ -625,6 +648,9 @@ export function celebrate() {
   window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
   fx().confetti({ count: 180 });
   fx().fireworks({ count: 8, gap: 380 });
+  document.querySelector('.constellation')?.classList.add('lit');
+  setTimeout(() => shootingStar({ front: true }), 900);
+  setTimeout(() => shootingStar({ front: true }), 2600);
   startLoveWords(sec);
   if ('vibrate' in navigator) { try { navigator.vibrate([60, 40, 60]); } catch { /* yok say */ } }
   sendEvent('evet', { title: 'Sonsuza dek sorusuna “Evet” dedi! 💍' }, { once: 'evet' });
@@ -767,4 +793,93 @@ export function closeSlideshow() {
   box.hidden = true;
   document.body.classList.remove('no-scroll');
   return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Kayan yıldız, kalp takımyıldızı, mühür çatlaması, gizli not          */
+/* ------------------------------------------------------------------ */
+// front: true → içeriğin önünden geçer (kutlama); false → gökyüzünde, içeriğin arkasında
+export function shootingStar({ front = false } = {}) {
+  if (reducedMotion) return;
+  const W = innerWidth;
+  const H = innerHeight;
+  const fromLeft = Math.random() < 0.5;
+  const x0 = fromLeft ? rand(-0.05, 0.35) * W : rand(0.65, 1.05) * W;
+  const y0 = rand(0.03, 0.3) * H;
+  const len = rand(0.45, 0.75) * Math.max(W, 600);
+  const ang = (fromLeft ? rand(18, 34) : 180 - rand(18, 34)) * (Math.PI / 180);
+  const dx = Math.cos(ang) * len;
+  const dy = Math.sin(ang) * len;
+  const el = h('i', {
+    class: `shoot${front ? ' front' : ''}`,
+    'aria-hidden': 'true',
+    style: { left: `${x0}px`, top: `${y0}px`, '--dx': `${dx}px`, '--dy': `${dy}px`, '--a': `${ang}rad`, '--dur': `${rand(0.9, 1.4).toFixed(2)}s` },
+  });
+  document.body.append(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+  setTimeout(() => el.remove(), 2500);
+}
+
+// Gece gökyüzündeki kalp şeklinde takımyıldız
+export function buildConstellation() {
+  const pts = [];
+  const N = 15;
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const x = 100 + 16 * Math.sin(t) ** 3 * 5.4;
+    const y = 86 - (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 5.2;
+    pts.push([x.toFixed(1), y.toFixed(1)]);
+  }
+  const line = `${pts.map((p) => p.join(',')).join(' ')} ${pts[0].join(',')}`;
+  const stars = pts.map(([x, y], i) => `<circle class="cs-star" cx="${x}" cy="${y}" r="${i % 4 === 0 ? 2.3 : 1.6}" style="--i:${i}"/>`).join('');
+  return svg('0 0 200 180', `<polyline class="cs-line" points="${line}" pathLength="100"/>${stars}`, 'constellation');
+}
+
+export function startNightSky() {
+  const c = document.querySelector('.constellation');
+  if (c) requestAnimationFrame(() => c.classList.add('draw'));
+  if (reducedMotion) return () => {};
+  let timer = 0;
+  const loop = () => {
+    shootingStar();
+    timer = setTimeout(loop, rand(4200, 9000));
+  };
+  timer = setTimeout(loop, 1800);
+  return () => clearTimeout(timer);
+}
+
+// Zarfın mührü ikiye ayrılıp düşer
+export function crackSeal(env) {
+  const seal = env && env.querySelector('.env-seal');
+  if (!seal) return Promise.resolve();
+  const r = seal.getBoundingClientRect();
+  fx().sparkle(r.left + r.width / 2, r.top + r.height / 2, 30, { power: 1.3 });
+  if (reducedMotion || !r.width) return Promise.resolve();
+  const markup = seal.innerHTML;
+  const halves = ['l', 'r'].map((side) => {
+    const half = h('div', {
+      class: `seal-half ${side}`,
+      'aria-hidden': 'true',
+      style: { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` },
+    });
+    half.innerHTML = markup;
+    document.body.append(half);
+    return half;
+  });
+  seal.classList.add('cracked');
+  setTimeout(() => halves.forEach((x) => x.remove()), 1400);
+  return new Promise((res) => setTimeout(res, 260));
+}
+
+// İsimlere üç kez dokununca açılan gizli not
+export async function openSecret(from) {
+  const note = String(state.content?.home?.secretNote || '').trim();
+  if (!note) return;
+  if (from) {
+    const r = from.getBoundingClientRect();
+    fx().sparkle(r.left + r.width / 2, r.top + r.height / 2, 34, { power: 1.4 });
+  }
+  shootingStar({ front: true });
+  sendEvent('gizli', { title: 'Gizli notu buldu 🤫' }, { once: 'gizli' });
+  await dialog({ icon: '🤫', title: 'Gizli not', text: note, yes: 'Seni seviyorum ❤' });
 }

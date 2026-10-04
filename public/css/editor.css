@@ -36,6 +36,12 @@ body.editing .envelope { animation: none; margin-top: calc(var(--w) * .66); }
 body.editing .intro { place-items: start center; }
 body.editing .intro-inner { padding-bottom: 140px; }
 body.editing .success { animation: none; }
+/* Düzenlerken efektler yazmayı zorlaştırmasın */
+body.editing .letter.reveal { transform: none; }
+body.editing .letter.is-in { animation: none; }
+body.editing .letter .letter-seal { opacity: 1; animation: none; }
+body.editing .env-glow, body.editing .flip-front::after { display: none; }
+body.editing .scene-day::before { animation: none; }
 
 /* Gizlenmiş bölüm */
 .ed-ch-bar {
@@ -226,6 +232,12 @@ body.editing .slot.empty { cursor: pointer; }
 .ow-edit .ow-icon { font-size: 1.6rem; }
 .ow-edit .ow-label { margin: 0; font-size: 1.5rem; }
 .ow-edit .ow-text { font-size: 1.1rem; }
+
+/* Gizli not */
+.ed-secret { max-width: 560px; margin: 26px auto 0; padding: 16px 18px 18px; border-radius: 20px; border: 2px dashed rgba(224, 36, 94, .35); background: rgba(255, 255, 255, .7); }
+.ed-secret-head { margin: 0 0 6px; font-family: var(--f-ui); font-size: .8rem; font-weight: 700; line-height: 1.4; color: var(--rose-deep); }
+.ed-secret .secret-hint { margin-top: 10px; }
+.ed-secret-note { margin: 14px 0 0; text-align: left; }
 
 /* Hayaller */
 body.editing .dream-check { cursor: pointer; }

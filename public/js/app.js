@@ -25,6 +25,8 @@ function setScene(scene) {
 }
 
 function makeStars() {
+  const night = $('.scene-night');
+  if (night && !$('.constellation', night)) night.append(F.buildConstellation());
   const box = $('.scene-night .stars');
   if (!box || box.childElementCount) return;
   const n = innerWidth < 600 ? 60 : 100;
@@ -80,11 +82,14 @@ function updateTopbar() {
 /* ------------------------------------------------------------------ */
 /* Kalpli sayfa geçişi                                                 */
 /* ------------------------------------------------------------------ */
-async function heartWipe(point, card, swap) {
+// swap: kalp ekranı kapatınca sayfayı değiştirir; reveal: kalp açılmaya başlarken
+// bölümün animasyonlarını başlatır (perdenin arkasında oynayıp bitmesinler)
+async function heartWipe(point, card, swap, reveal = () => {}) {
   const W = innerWidth;
   const H = innerHeight;
   if (reducedMotion || state.editing) {
     swap();
+    reveal();
     return;
   }
   const wipe = $('#wipe');
@@ -112,8 +117,11 @@ async function heartWipe(point, card, swap) {
   await sleep(180);
   heart.style.left = `${W / 2 - 240}px`;
   heart.style.top = `${H / 2 - 230}px`;
-  await heart.animate([{ transform: `scale(${S})` }, { transform: 'scale(0)' }],
-    { duration: 720, easing: 'cubic-bezier(.55,0,.1,1)', fill: 'forwards' }).finished.catch(() => {});
+  const shrink = heart.animate([{ transform: `scale(${S})` }, { transform: 'scale(0)' }],
+    { duration: 720, easing: 'cubic-bezier(.55,0,.1,1)', fill: 'forwards' });
+  await sleep(240);
+  reveal();
+  await shrink.finished.catch(() => {});
   wipe.classList.remove('active');
 }
 
@@ -150,9 +158,9 @@ export async function go(target, point, { push = true } = {}) {
   try {
     await heartWipe(point, card, () => {
       closeMenu(true);
-      if (toIntro) showIntro(); else showChapter(target);
+      if (toIntro) showIntro(); else showChapter(target, { defer: true });
       if (push) setHash(toIntro ? null : target);
-    });
+    }, () => { if (!toIntro) startChapter(target); });
   } finally {
     state.busy = false;
   }
@@ -166,7 +174,7 @@ function stopBehaviors() {
   F.closeSlideshow();
 }
 
-function showChapter(key) {
+function showChapter(key, { defer = false } = {}) {
   stopBehaviors();
   $('#intro').classList.add('gone');
   $('#topbar').hidden = false;
@@ -180,6 +188,11 @@ function showChapter(key) {
   window.scrollTo(0, 0);
   $$('#menu li').forEach((li) => li.classList.toggle('current', $('[data-goto]', li)?.dataset.goto === key));
   updateTopbar();
+  if (!defer) startChapter(key);
+}
+
+function startChapter(key) {
+  if (state.current !== key) return;
   observeAll();
   startBehaviors(key);
 }
@@ -206,11 +219,20 @@ function startBehaviors(key) {
     if (word) state.stops.push(typewriter(word, state.content.home.rotating || []));
     state.stops.push(F.startCounter(sec));
     F.celebrateSpecial();
+    const stats = $('.stats', sec);
+    if (stats && !state.editing) {
+      const seen = new IntersectionObserver((entries) => {
+        if (entries.some((en) => en.isIntersecting)) { seen.disconnect(); F.countUp(stats); }
+      }, { threshold: 0.35 });
+      seen.observe(stats);
+      state.stops.push(() => seen.disconnect());
+    }
   }
   if (key === 'surprise' && !state.editing) requestAnimationFrame(() => F.initScratch(sec));
   if (key === 'finale' && !state.editing) {
     F.resetNoButton();
     if (state.answered) F.startLoveWords(sec);
+    state.stops.push(F.startNightSky());
     state.stops.push(() => { F.resetNoButton(); F.stopLoveWords(); });
   }
 }
@@ -244,12 +266,14 @@ async function openEnvelope() {
   const env = $('#envelope');
   if (!env || state.busy || state.editing || env.classList.contains('open')) return;
   state.busy = true;
-  env.classList.add('open');
-  $('#intro').classList.add('opening');
   playMusic();
   const seal = $('.env-seal', env).getBoundingClientRect();
-  state.fx.burst(seal.left + seal.width / 2, seal.top + seal.height / 2, 22, { power: 1.25 });
-  await sleep(reducedMotion ? 200 : 1800);
+  await F.crackSeal(env);
+  env.classList.add('open');
+  $('#intro').classList.add('opening');
+  state.fx.burst(seal.left + seal.width / 2, seal.top + seal.height / 2, 18, { power: 1.15 });
+  if ('vibrate' in navigator) { try { navigator.vibrate(18); } catch { /* yok say */ } }
+  await sleep(reducedMotion ? 200 : 1750);
   const letter = $('.env-letter', env).getBoundingClientRect();
   state.busy = false;
   const first = state.startKey && visibleChapters().some((c) => c.key === state.startKey) ? state.startKey : visibleChapters()[0]?.key;
@@ -405,7 +429,25 @@ function bindEvents() {
     if (state.editing) return;
 
     const flip = t.closest('.flip');
-    if (flip) { flip.classList.toggle('flipped'); return; }
+    if (flip) {
+      flip.classList.toggle('flipped');
+      if (flip.classList.contains('flipped')) {
+        const r = flip.getBoundingClientRect();
+        state.fx.sparkle(r.left + r.width / 2, r.top + r.height / 2, 12, { power: 0.8 });
+      }
+      return;
+    }
+    const hero = t.closest('.hero-title');
+    if (hero) {
+      const now = Date.now();
+      state.heroTaps = (now - (state.heroTapAt || 0) < 900 ? (state.heroTaps || 0) : 0) + 1;
+      state.heroTapAt = now;
+      hero.classList.remove('tap');
+      void hero.offsetWidth;
+      hero.classList.add('tap');
+      if (state.heroTaps >= 3) { state.heroTaps = 0; F.openSecret(hero); }
+      return;
+    }
     const zoomImg = t.closest('.slot[data-zoom] img');
     if (zoomImg) { F.openLightbox(zoomImg); return; }
     const couponBtn = t.closest('.coupon-use');
@@ -466,8 +508,41 @@ function bindEvents() {
   document.addEventListener('pointerdown', (e) => {
     if (e.button > 0 || !(e.target instanceof Element)) return;
     if (e.target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"], .no-burst, .ed-ui, #lightbox, #slideshow, .dialog-back')) return;
+    const popped = !state.editing && !e.target.closest('button, a, .envelope') ? state.bg?.pop(e.clientX, e.clientY) : null;
+    if (popped) {
+      state.fx.sparkle(popped.x, popped.y, 16, { power: 0.9 });
+      state.fx.burst(popped.x, popped.y, 9, { power: 0.9, size: [10, 18] });
+      return;
+    }
     state.fx.burst(e.clientX, e.clientY, 7, { power: 0.75, size: [8, 16] });
   }, { passive: true });
+
+  // Masaüstünde zarf ve polaroidler fareyi takip ederek hafifçe eğilir
+  if (matchMedia('(pointer: fine)').matches && !reducedMotion) {
+    let tiltEl = null;
+    let raf = 0;
+    const reset = (el) => { if (el) { el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); el.classList.remove('tilting'); } };
+    const release = () => { cancelAnimationFrame(raf); reset(tiltEl); tiltEl = null; };
+    document.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' || state.editing) return;
+      const el = e.target instanceof Element ? e.target.closest('[data-tilt]') : null;
+      if (el !== tiltEl) { release(); tiltEl = el; }
+      if (!el || el.closest('.intro.opening')) return;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const dx = (e.clientX - (r.left + r.width / 2)) / r.width;
+        const dy = (e.clientY - (r.top + r.height / 2)) / r.height;
+        const k = el.dataset.tilt === 'zarf' ? 12 : 9;
+        el.classList.add('tilting');
+        el.style.setProperty('--ry', `${(dx * k).toFixed(2)}deg`);
+        el.style.setProperty('--rx', `${(-dy * k).toFixed(2)}deg`);
+      });
+    }, { passive: true });
+    // Fare pencereden çıkınca ya da sayfa kayınca düzelsin
+    document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) release(); });
+    addEventListener('scroll', () => { if (tiltEl) release(); }, { passive: true });
+  }
 
   if (matchMedia('(pointer: fine)').matches) {
     document.addEventListener('pointermove', (e) => {

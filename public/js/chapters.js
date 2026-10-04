@@ -132,7 +132,7 @@ function renderHome() {
     T('h3', 'home.statsTitle', 'sub-title script'),
     h('div', { class: 'stats-grid', 'data-stats': '' }, statsList().map((s) => h('div', { class: 'stat' },
       h('span', { class: 'stat-ic', 'aria-hidden': 'true' }, s.icon),
-      h('b', {}, s.value),
+      h('b', { 'data-n': E ? null : s.n, 'data-big': s.big ? '1' : null }, s.value),
       h('span', {}, s.label)))));
 
   const daily = E
@@ -159,6 +159,12 @@ function renderHome() {
     stats,
     daily,
     T('p', 'home.quote', 'quote reveal'),
+    E
+      ? h('section', { class: 'ed-secret' },
+        h('p', { class: 'ed-secret-head' }, '🤫 Gizli not — Sena isimlere üç kez dokununca açılır (boş bırakırsan kapanır)'),
+        T('p', 'home.secretHint', 'secret-hint'),
+        T('p', 'home.secretNote', 'ed-secret-note ed-multiline', { 'data-multiline': '' }))
+      : (String(c.secretNote || '').trim() && c.secretHint ? T('p', 'home.secretHint', 'secret-hint reveal') : null),
     h('div', { class: 'home-cta reveal' },
       h('button', { class: 'btn btn-big', type: 'button', 'data-go': 'next' }, heartSvg(), T('span', 'home.cta'))));
 }
@@ -191,6 +197,9 @@ function renderGallery() {
   let items = (c.items || []).map((it, i) => ({ it, i }));
   const withPhoto = items.filter((x) => x.it.photo);
   if (!state.editing && withPhoto.length) items = withPhoto;
+  // Sütun sayısı fotoğraf sayısına göre: boş sütun kalıp galeri yana kaymasın
+  const n = items.length + (state.editing ? 1 : 0);
+  const cols = (max) => String(Math.max(1, Math.ceil(n / Math.ceil(n / max))));
   return chapterShell('gallery',
     chHead('gallery'),
     state.editing || withPhoto.length > 1
@@ -198,10 +207,11 @@ function renderGallery() {
         h('button', { class: 'btn btn-soft', type: 'button', 'data-action': 'slideshow' },
           svg('0 0 24 24', '<path d="M8 5v14l11-7z"/>'), T('span', 'gallery.slideshow')))
       : null,
-    h('div', { class: 'polaroids', 'data-list': 'gallery.items' },
+    h('div', { class: 'polaroids', 'data-list': 'gallery.items', style: { '--c2': cols(2), '--c3': cols(3), '--c4': cols(4) } },
       items.map(({ it, i }, n) => h('figure', {
         class: 'polaroid reveal',
         'data-index': i,
+        'data-tilt': state.editing ? null : '',
         style: { '--r': `${POLAROID_TILT[n % POLAROID_TILT.length]}deg`, '--d': `${(n % 4) * 0.08}s` },
       },
       h('span', { class: 'tape', 'aria-hidden': 'true' }),
@@ -460,24 +470,25 @@ export const RENDERERS = {
 /* ------------------------------------------------------------------ */
 export function renderIntro(root) {
   const E = state.editing;
-  const c = state.content;
   const specials = E ? [] : specialDays();
   root.textContent = '';
   root.append(h('div', { class: 'intro-inner' },
     specials.length ? h('p', { class: 'intro-ribbon' }, `${specials[0].icon} ${specials[0].text}`) : null,
     T('p', 'intro.kicker', 'intro-kicker'),
-    h('div', {
-      class: `envelope${E ? ' open' : ''}`,
-      id: 'envelope',
-      role: E ? null : 'button',
-      tabindex: E ? null : '0',
-      'aria-label': E ? null : 'Mektubu aç',
-    },
-    h('div', { class: 'env-back' }),
-    h('div', { class: 'env-letter' }, T('p', 'intro.letter', 'env-letter-text script'), heartSvg('env-letter-heart')),
-    h('div', { class: 'env-pocket' }),
-    h('div', { class: 'env-flap' }),
-    h('button', { class: 'env-seal', type: 'button', 'aria-label': 'Mektubu aç', tabindex: '-1' }, waxSeal('env-seal-svg'))),
+    h('div', { class: 'env-stage', 'data-tilt': E ? null : 'zarf' },
+      h('div', { class: 'env-glow', 'aria-hidden': 'true' }),
+      h('div', {
+        class: `envelope${E ? ' open' : ''}`,
+        id: 'envelope',
+        role: E ? null : 'button',
+        tabindex: E ? null : '0',
+        'aria-label': E ? null : 'Mektubu aç',
+      },
+      h('div', { class: 'env-back' }),
+      h('div', { class: 'env-letter' }, T('p', 'intro.letter', 'env-letter-text script'), heartSvg('env-letter-heart')),
+      h('div', { class: 'env-pocket' }),
+      h('div', { class: 'env-flap' }),
+      h('button', { class: 'env-seal', type: 'button', 'aria-label': 'Mektubu aç', tabindex: '-1' }, waxSeal('env-seal-svg')))),
     T('h1', 'intro.to', 'intro-to script shimmer-gold'),
     T('p', 'intro.from', 'intro-from'),
     T('p', 'intro.hint', 'intro-hint'),

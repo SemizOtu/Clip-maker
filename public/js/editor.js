@@ -1158,6 +1158,7 @@ const INBOX_TYPES = {
   evet: { icon: '💍', label: '“Evet” dedi!' },
   sinav: { icon: '📝', label: 'Sınavı bitirdi' },
   kazi: { icon: '🎁', label: 'Kazı kazanı kazıdı' },
+  gizli: { icon: '🤫', label: 'Gizli notu buldu' },
 };
 
 async function loadInbox() {
@@ -1165,7 +1166,11 @@ async function loadInbox() {
     const data = await api('/api/inbox');
     S.inbox = data;
     updateBadge();
-  } catch { /* yok say */ }
+    return true;
+  } catch (err) {
+    S.inboxError = explain(err);
+    return false;
+  }
 }
 
 function updateBadge() {
@@ -1197,10 +1202,17 @@ async function openInbox() {
           h('p', { class: 'ed-msg-meta' }, `${relTime(it.at)} · ${it.device || ''}`)),
         h('button', {
           type: 'button', class: 'ed-x small', title: 'Sil', 'aria-label': 'Sil',
-          onclick: async () => {
-            await api(`/api/inbox?id=${encodeURIComponent(it.id)}`, { method: 'DELETE' }).catch(() => {});
-            S.inbox.items = S.inbox.items.filter((x) => x.id !== it.id);
-            render();
+          onclick: async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try {
+              await api(`/api/inbox?id=${encodeURIComponent(it.id)}`, { method: 'DELETE' });
+              S.inbox.items = S.inbox.items.filter((x) => x.id !== it.id);
+              render();
+            } catch (err) {
+              btn.disabled = false;
+              toast(`Silinemedi: ${explain(err)}`, { error: true, ms: 6000 });
+            }
           },
         }, '✕')));
     }
@@ -1216,20 +1228,44 @@ async function openInbox() {
         onclick: async () => {
           if (!(S.inbox.items || []).length) return;
           const ok = await dialog({ icon: '🗑️', text: 'Gelen kutusundaki her şey silinsin mi?', yes: 'Evet, sil', no: 'Vazgeç' });
-          if (!ok) return;
-          await api('/api/inbox', { method: 'DELETE' }).catch(() => {});
-          S.inbox.items = [];
-          render();
+          if (ok !== true) return;
+          try {
+            await api('/api/inbox', { method: 'DELETE' });
+            S.inbox = { items: [], unread: 0, readAt: new Date().toISOString() };
+            updateBadge();
+            render();
+            toast('Gelen kutusu temizlendi ✓');
+          } catch (err) {
+            toast(`Silinemedi: ${explain(err)}`, { error: true, ms: 6000 });
+          }
         },
       }, 'Tümünü sil'),
-      h('button', { type: 'button', class: 'ed-b', onclick: async () => { await loadInbox(); render(); } }, '↻ Yenile'),
+      h('button', {
+        type: 'button', class: 'ed-b',
+        onclick: async () => {
+          if (await loadInbox()) render();
+          else toast(`Yenilenemedi: ${S.inboxError}`, { error: true });
+        },
+      }, '↻ Yenile'),
       h('button', { type: 'button', class: 'ed-b primary', onclick: () => m.close() }, 'Kapat'),
     ],
   });
-  await loadInbox();
+  if (!(await loadInbox())) {
+    listEl.textContent = '';
+    listEl.append(h('p', { class: 'ed-warn' }, `Gelen kutusu yüklenemedi: ${S.inboxError} “↻ Yenile” ile tekrar dene.`));
+    return;
+  }
   render();
+  // Açınca hepsi okundu sayılır; “yeni” işaretleri bu açılışta görünmeye devam eder
   if (S.inbox.unread) {
-    api('/api/inbox', { method: 'PATCH' }).then((d) => { S.inbox.unread = 0; S.inbox.readAt = d.readAt; updateBadge(); }).catch(() => {});
+    try {
+      const d = await api('/api/inbox', { method: 'PATCH' });
+      S.inbox.unread = 0;
+      S.inbox.readAt = d.readAt;
+      updateBadge();
+    } catch (err) {
+      console.warn('Okundu işaretlenemedi', err);
+    }
   }
 }
 

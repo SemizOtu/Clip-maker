@@ -11,6 +11,7 @@ const PETAL_COLORS = [['#fff3f6', '#ffadc2'], ['#ffe6ec', '#ff8fab'], ['#fff7f9'
 const DARK_PETALS = [['#ff9ab5', '#c2185b'], ['#ffb3c6', '#e0245e'], ['#f7a1b9', '#a3123f']];
 const CONFETTI = ['#e0245e', '#ff8fab', '#ffd1dc', '#f3c97a', '#ffffff', '#f43f75', '#fda4af'];
 const FIREWORK = ['#ff4d8d', '#ff8fab', '#ffd1dc', '#f7c56b', '#ffffff', '#ff6b6b', '#e879f9'];
+const GOLD = ['#ffe9a8', '#f7c56b', '#fff6dc', '#ffd27a'];
 
 function sprite(size, draw) {
   const cv = document.createElement('canvas');
@@ -242,9 +243,24 @@ export function startBackground(canvas) {
     fill(false);
   };
 
+  // Dokunulan yerdeki kalbi/yaprağı “patlat”: en yakın parçacığı kaldırıp konumunu döndürür
+  const pop = (x, y) => {
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      if (p.dying || (p.alpha ?? p.a) < 0.15 || p.kind === 'bokeh') continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < Math.max(30, p.s * 1.1) && d < bestD) { best = i; bestD = d; }
+    }
+    if (best < 0) return null;
+    const [p] = ps.splice(best, 1);
+    return { x: p.x, y: p.y, kind: p.kind };
+  };
+
   document.addEventListener('visibilitychange', () => (document.hidden ? pause() : resume()));
   requestAnimationFrame(frame);
-  return { pause, resume, setMode };
+  return { pause, resume, setMode, pop };
 }
 
 /* ------------------------------------------------------------------ */
@@ -260,7 +276,7 @@ function heartPoint(t) {
 export function createFX(canvas) {
   const st = setupCanvas(canvas, 2);
   const hearts = HEART_COLORS.map((c) => makeHeart(c, 48));
-  const glows = Object.fromEntries(FIREWORK.map((c) => [c, makeGlow(c, 32)]));
+  const glows = Object.fromEntries([...FIREWORK, ...GOLD].map((c) => [c, makeGlow(c, 32)]));
   const ps = [];
   const rockets = [];
   let running = false;
@@ -381,7 +397,11 @@ export function createFX(canvas) {
     const now = performance.now();
     if (now - lastTrail < 55 || reducedMotion) return;
     lastTrail = now;
-    ps.push(base({
+    const gold = Math.random() < 0.35;
+    ps.push(base(gold ? {
+      img: glows[pick(GOLD)], glow: true, x: x + rand(-5, 5), y: y + rand(-5, 5), s: rand(6, 11),
+      vx: rand(-25, 25), vy: rand(-40, -10), g: 30, drag: 1.2, life: rand(0.5, 0.9), grow: false, twinkle: rand(14, 24), alpha: 0.9,
+    } : {
       img: pick(hearts), x: x + rand(-4, 4), y: y + rand(-4, 4), s: rand(7, 13),
       vx: rand(-20, 20), vy: rand(-60, -25), g: -10, drag: 1, life: rand(0.6, 0.95), alpha: 0.85,
     }));
@@ -426,7 +446,23 @@ export function createFX(canvas) {
     }
   }
 
-  return { burst, confetti, trail, fireworks, explode: (x, y) => { explode(x, y, pick(FIREWORK)); kick(); } };
+  // Altın simli parıltı (mühür kırılınca, kalp patlayınca, gizli not açılınca)
+  function sparkle(x, y, n = 18, { power = 1, spread = Math.PI * 2, angle = -Math.PI / 2, size = [3, 7] } = {}) {
+    if (reducedMotion) n = Math.min(n, 5);
+    for (let i = 0; i < n; i++) {
+      const ang = angle + rand(-spread / 2, spread / 2);
+      const sp = rand(60, 230) * power;
+      ps.push(base({
+        img: glows[pick(GOLD)], glow: true, x: x + rand(-4, 4), y: y + rand(-4, 4), s: rand(size[0], size[1]) * 2,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 60, drag: 1.6,
+        life: rand(0.7, 1.5), grow: false, twinkle: rand(12, 26), alpha: 0.95,
+      }));
+    }
+    cap();
+    kick();
+  }
+
+  return { burst, confetti, trail, fireworks, sparkle, explode: (x, y) => { explode(x, y, pick(FIREWORK)); kick(); } };
 }
 
 /* ------------------------------------------------------------------ */
@@ -447,7 +483,7 @@ export function splitLetters(el) {
     word.setAttribute('aria-hidden', 'true');
     for (const ch of Array.from(part)) {
       const span = document.createElement('span');
-      span.className = 'ch';
+      span.className = ch === '&' ? 'ch amp' : 'ch';
       span.textContent = ch;
       span.style.setProperty('--i', i++);
       word.append(span);

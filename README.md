@@ -31,13 +31,14 @@ kalp şeklinde havai fişeklerle biten bir final içerir.
 - **Bölümler:** Her bölümün üstündeki anahtarla bölümü gizleyebilirsin; Sena gizli bölümleri görmez.
 - **Sınav:** Her şıkkın solundaki yuvarlağa dokunarak doğru cevabı seç.
 - **Hayaller:** Soldaki yuvarlağa dokunarak “gerçekleşti” olarak işaretle.
+- **🤫 Gizli not:** “Sen & Ben” bölümünün altındaki kesik çizgili kutuda. Sena isimlerinize üç kez dokununca açılır; üstündeki ipucu yazısını da değiştirebilirsin. Notu boşaltırsan özellik kapanır.
 - **⚙️ Ayarlar:** İsimler, birlikteliğin başladığı an, Sena’nın doğum günü, şarkınız, bölüm adları, özel kilit, bildirimler, kaçan “Hayır” butonunun yazıları, şifre değiştirme.
 - **👁 Önizle:** Sena’nın göreceği hâli gösterir (önizlemedeki tıklamalar Gelen Kutusu’na düşmez).
 
 ## 💌 Gelen kutusu
 
 Sena bir aşk kuponunu kullandığında, “zamanı gelince aç” mektuplarından birini açtığında,
-sınavı bitirdiğinde, kazı kazanı kazıdığında, sonsuza dek sorusuna “Evet” dediğinde
+sınavı bitirdiğinde, kazı kazanı kazıdığında, gizli notu bulduğunda, sonsuza dek sorusuna “Evet” dediğinde
 ya da sana bir not / yeni bir hayal yazdığında düzenleme modundaki **💌 Gelen** kutusunda görürsün.
 Ayarlar’dan WhatsApp numaranı yazarsan, kupon kullanıldığında sana WhatsApp mesajı da açılır.
 Sen giriş yapmışken sitede yaptığın denemeler “senin denemen” etiketiyle ayrı görünür.
@@ -46,16 +47,19 @@ Sen giriş yapmışken sitede yaptığın denemeler “senin denemen” etiketiy
 
 | | Bölüm | İçinde neler var |
 |---|---|---|
-| — | Kapak | Kadife zemin, mühürlü zarf; açılınca şarkınız başlar. İstersen soru-cevaplı özel kilit |
-| I | Sen & Ben | Harf harf açılan isimler, “Sen benim …”, kalp çerçeveli fotoğraf, canlı sayaç, bir sonraki ay dönümü, “Sayılarla biz”, her gün değişen “Bugünün notu” |
+| — | Kapak | Kadife zemin, mühürlü zarf; mühür ikiye ayrılır, zarftan ışık yayılır ve şarkınız başlar. İstersen soru-cevaplı özel kilit |
+| I | Sen & Ben | Harf harf açılan isimler (& kalp gibi atar), “Sen benim …”, kalp çerçeveli fotoğraf, takvim yaprağı gibi dönen sayaç, bir sonraki ay dönümü, sayarak artan “Sayılarla biz”, her gün değişen “Bugünün notu”, gizli not |
 | II | Hikâyemiz | Tarihli, fotoğraflı zaman tüneli |
-| III | Anılarımız | Bantlı polaroid duvarı, büyüyen fotoğraflar, müzikli slayt gösterisi |
-| IV | Sana Mektubum | Kelime kelime beliren mektup + “Zamanı gelince aç” mektupları |
+| III | Anılarımız | Bantlı polaroid duvarı (fotoğraflar anlık fotoğraf gibi “banyo” olarak belirir), müzikli slayt gösterisi |
+| IV | Sana Mektubum | Masadan kalkar gibi açılan, mührü basılan mektup + “Zamanı gelince aç” mektupları |
 | V | Neden Sen? | Çevrilen sebep kartları, rastgele sebep, “Seni ne kadar seviyorum?” ölçeri |
 | VI | Beni Ne Kadar Tanıyorsun? | Kalpli puanlı küçük sınav |
 | VII | Hayallerimiz | Birlikte yapılacaklar listesi; Sena da yeni hayal önerebilir |
 | VIII | Sürprizler | Kazı kazan + aşk kuponları |
-| IX | Sonsuza Dek | Gece sahnesi, kaçan “Hayır”, kalpli havai fişekler ve Sena’dan sana not |
+| IX | Sonsuza Dek | Gece sahnesi, kalp şeklinde takımyıldız ve kayan yıldızlar, kaçan “Hayır”, kalpli havai fişekler ve Sena’dan sana not |
+
+Arka planda süzülen kalplere dokununca patlayıp ışıldarlar; bilgisayarda imleç kalbe dönüşür,
+zarf ve polaroidler fareyi takip ederek hafifçe eğilir.
 
 Ay dönümlerinde, 100’ün katı olan günlerde, Sena’nın doğum gününde, Sevgililer Günü’nde
 ve yılbaşında site kendiliğinden kutlama yapar.
