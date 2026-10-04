@@ -412,6 +412,20 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-result { margin-top: 6px; font-size: .88rem; }
 .ed-result.good { color: #15803d; }
 .ed-result.bad { color: #b91c1c; }
+
+/* Telefona bildirim kartları */
+.ed-notify { margin-top: 12px; display: grid; gap: 12px; }
+.ed-notify > .ed-note { margin: 0; }
+.ed-notify-card { padding: 14px 14px 10px; border-radius: 16px; background: #fff; border: 1px solid #f6d3dd; }
+.ed-notify-card h5 { margin: 0 0 8px; font-size: .95rem; font-weight: 700; color: var(--ink); }
+.ed-notify-card summary { cursor: pointer; font-size: .92rem; font-weight: 700; color: var(--ink); list-style-position: inside; }
+.ed-notify-card[open] summary { margin-bottom: 8px; }
+.ed-notify-card > .ed-input { width: 100%; margin-bottom: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
+.ed-steps { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 6px; font-size: .85rem; line-height: 1.45; color: var(--ink); }
+.ed-steps code { padding: 2px 6px; border-radius: 6px; background: #f7eef1; font-size: .8rem; word-break: break-word; }
+.ed-steps .ed-b { margin: 4px 0 0; }
+.ed-hint { display: block; margin-top: 6px; font-size: .76rem; line-height: 1.4; color: var(--ink-soft); }
+.ed-hint a { color: var(--rose-deep); }
 .ed-link { color: var(--rose); font-weight: 700; }
 .ed-b {
   display: inline-flex;
@@ -531,3 +545,5 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
   .ed-btn .lb { display: none; }
   .ed-btn { min-width: 44px; }
 }
+.ed-inbox-tip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.ed-inbox-tip .ed-b { margin: 0; }

@@ -923,6 +923,129 @@ function openDateModal() {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* Telefona bildirim: WhatsApp (CallMeBot) ve ntfy                      */
+/* ------------------------------------------------------------------ */
+// CallMeBot'un ücretsiz WhatsApp API'si: https://www.callmebot.com/blog/free-api-whatsapp-messages/
+const CALLMEBOT_NUMBER = '+34 644 05 92 17';
+const CALLMEBOT_TEXT = 'I allow callmebot to send me messages';
+const CALLMEBOT_PAGE = 'https://www.callmebot.com/blog/free-api-whatsapp-messages/';
+
+const notifyOf = (c) => {
+  if (!c.secret.notify || typeof c.secret.notify !== 'object') c.secret.notify = { waPhone: '', waKey: '', ntfyTopic: '' };
+  return c.secret.notify;
+};
+const phoneNotifyReady = (c) => {
+  const n = notifyOf(c);
+  return Boolean((n.waPhone && n.waKey) || n.ntfyTopic);
+};
+
+function newTopic() {
+  const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
+  const b = new Uint8Array(18);
+  crypto.getRandomValues(b);
+  return `ds-${Array.from(b, (x) => abc[x % abc.length]).join('')}`;
+}
+
+function copyButton(getText, label = 'Kopyala') {
+  return h('button', {
+    type: 'button', class: 'ed-b small',
+    onclick: async (e) => {
+      const btn = e.currentTarget;
+      try {
+        await navigator.clipboard.writeText(getText());
+        btn.textContent = '✓ Kopyalandı';
+        setTimeout(() => { btn.textContent = label; }, 1800);
+      } catch {
+        toast('Kopyalanamadı; elle seçip kopyalayabilirsin.');
+      }
+    },
+  }, label);
+}
+
+function testButton(resultEl, payload) {
+  return h('button', {
+    type: 'button', class: 'ed-b primary',
+    onclick: async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      resultEl.className = 'ed-result';
+      resultEl.textContent = 'Gönderiliyor…';
+      try {
+        await api('/api/notify', { method: 'POST', body: payload() });
+        resultEl.textContent = '✓ Gönderildi! Birkaç saniye içinde telefonuna gelmeli.';
+        resultEl.classList.add('good');
+      } catch (err) {
+        resultEl.textContent = explain(err);
+        resultEl.classList.add('bad');
+      } finally {
+        btn.disabled = false;
+      }
+    },
+  }, '📨 Deneme gönder');
+}
+
+function phoneNotifySettings(c) {
+  const n = notifyOf(c);
+  const input = (key, attrs) => {
+    const el = h('input', { class: 'ed-input', ...attrs, value: n[key] || '' });
+    el.addEventListener('input', () => { n[key] = el.value.trim(); markDirty(); });
+    return el;
+  };
+  const waPhone = input('waPhone', { type: 'tel', autocomplete: 'tel', inputmode: 'tel', placeholder: '+90 532 123 45 67' });
+  const waKey = input('waKey', { type: 'text', autocomplete: 'off', spellcheck: 'false', placeholder: 'ör. 1234567' });
+  const waResult = h('p', { class: 'ed-result', 'aria-live': 'polite' });
+  const botDigits = CALLMEBOT_NUMBER.replace(/\D/g, '');
+
+  const whatsapp = h('div', { class: 'ed-notify-card' },
+    h('h5', {}, '💬 WhatsApp’tan mesaj gelsin (ücretsiz)'),
+    h('ol', { class: 'ed-steps' },
+      h('li', {}, 'Telefonunda ', h('b', {}, CALLMEBOT_NUMBER), ' numarasını rehberine ekle (adı “CallMeBot” olsun).'),
+      h('li', {}, 'Bu numaraya WhatsApp’tan tam olarak şunu yaz: ', h('code', {}, CALLMEBOT_TEXT), ' ',
+        h('a', {
+          class: 'ed-b small whatsapp', target: '_blank', rel: 'noopener',
+          href: `https://wa.me/${botDigits}?text=${encodeURIComponent(CALLMEBOT_TEXT)}`,
+        }, 'WhatsApp’ta hazır aç')),
+      h('li', {}, 'Birkaç dakika içinde gelen cevaptaki ', h('b', {}, 'APIKEY'), ' numarasını aşağıya yaz, sonra “Deneme gönder”e bas.')),
+    h('div', { class: 'ed-grid2' },
+      field('WhatsApp numaran', waPhone),
+      field('API anahtarı (APIKEY)', waKey)),
+    h('div', { class: 'ed-row' }, testButton(waResult, () => ({ kind: 'whatsapp', phone: waPhone.value, apikey: waKey.value }))),
+    waResult,
+    h('small', { class: 'ed-hint' }, 'Mesajlar CallMeBot adlı ücretsiz servis üzerinden yalnızca senin numarana gelir; Sena’nın bir şey göndermesi gerekmez. Bot numarası değişirse ',
+      h('a', { href: CALLMEBOT_PAGE, target: '_blank', rel: 'noopener' }, 'CallMeBot’un sayfasında'), ' yazar.'));
+
+  const topic = h('input', { class: 'ed-input', readonly: true, placeholder: 'Henüz konu oluşturulmadı', value: n.ntfyTopic || '' });
+  const ntfyResult = h('p', { class: 'ed-result', 'aria-live': 'polite' });
+  const setTopic = (v) => {
+    n.ntfyTopic = v;
+    topic.value = v;
+    markDirty();
+    ntfyTools.replaceChildren(...ntfyButtons());
+  };
+  const ntfyButtons = () => (n.ntfyTopic
+    ? [copyButton(() => n.ntfyTopic), h('button', { type: 'button', class: 'ed-b small danger', onclick: () => setTopic('') }, 'Kapat')]
+    : [h('button', { type: 'button', class: 'ed-b small', onclick: () => setTopic(newTopic()) }, 'Konu oluştur')]);
+  const ntfyTools = h('div', { class: 'ed-row' }, ...ntfyButtons());
+
+  const ntfy = h('details', { class: 'ed-notify-card', open: n.ntfyTopic ? true : null },
+    h('summary', {}, '🔔 Başka bir yol: ntfy uygulaması (WhatsApp olmazsa)'),
+    h('ol', { class: 'ed-steps' },
+      h('li', {}, 'Telefonuna ücretsiz ', h('b', {}, 'ntfy'), ' uygulamasını kur (App Store / Google Play).'),
+      h('li', {}, '“Konu oluştur”a bas; uygulamada + ile bu konu adına abone ol.'),
+      h('li', {}, '“Deneme gönder”e bas.')),
+    topic,
+    ntfyTools,
+    h('div', { class: 'ed-row' }, testButton(ntfyResult, () => ({ kind: 'ntfy', topic: n.ntfyTopic }))),
+    ntfyResult,
+    h('small', { class: 'ed-hint' }, 'Konu adı bir şifre gibidir; kimseyle paylaşma. İkisini birden açarsan haber ikisinden de gelir.'));
+
+  return h('div', { class: 'ed-notify' },
+    h('p', { class: 'ed-note' }, '📱 Sena not bıraktığında, hayal eklediğinde, kupon kullandığında, mektup açtığında ya da “Evet” dediğinde telefonuna anında haber gelsin:'),
+    whatsapp,
+    ntfy);
+}
+
 function openSettings(focus) {
   const c = app.content;
   const since = h('input', { class: 'ed-input', type: 'datetime-local', value: String(c.site.since || '').slice(0, 16) });
@@ -1039,8 +1162,7 @@ function openSettings(focus) {
       h('h4', {}, '🔔 Bildirimler'),
       toggle('Sena’nın yaptıklarını Gelen Kutusu’na düş', c.site.events !== false, (on) => { c.site.events = on; markDirty(); },
         'Kupon kullanınca, bir mektubu açınca, sınavı bitirince, “Evet” deyince… Senin için yazdığı notlar ve hayaller her zaman gelir.'),
-      field('WhatsApp numaran (isteğe bağlı)', boundInput('site.whatsapp', { type: 'tel', placeholder: '905xxxxxxxxx' }),
-        'Kupon kullanıldığında WhatsApp’ta sana hazır mesaj açılsın diye. Ülke koduyla, + olmadan yaz (ör. 905321234567).')),
+      phoneNotifySettings(c)),
     game: h('section', { class: 'ed-section' },
       h('h4', {}, '🏃 Kaçan “Hayır” butonu'),
       field('Kaçarken yazanlar (her satıra bir tane)', noTexts),
@@ -1112,10 +1234,11 @@ function checklist() {
     { done: (c.story.items || []).some((it) => it.photo), text: '“Hikâyemiz”deki anılara fotoğraf ve tarih ekle', go: () => app.go('story') },
     { done: Boolean(c.site.music && c.site.music.src), text: 'Şarkınızı ekle (zarf açılınca çalar)', go: () => openSettings('music') },
     { done: Boolean(c.finale.photo), text: 'Final bölümündeki kalbe bir fotoğraf koy', go: () => app.go('finale') },
+    { done: phoneNotifyReady(c), text: 'Sena not bırakınca ya da kupon kullanınca telefonuna WhatsApp’tan haber gelsin', go: () => openSettings('notify') },
     { tip: true, text: 'Daha önce yüklediğin bütün fotoğraf ve şarkılar “🖼️ Yüklediklerim”de', go: () => openLibrary() },
     { tip: true, text: 'Mektubu kendi cümlelerinle kişiselleştir', go: () => app.go('letter') },
     { tip: true, text: 'Sınav sorularını ikinize göre düzenle (✓ ile doğru cevabı seç)', go: () => app.go('quiz') },
-    { tip: true, text: 'İstersen WhatsApp numaranı ve özel kilidi ayarla', go: () => openSettings('notify') },
+    { tip: true, text: 'İstersen siteye soru-cevaplı özel bir kilit koy', go: () => openSettings('lock') },
   ];
 }
 
@@ -1217,11 +1340,15 @@ async function openInbox() {
         }, '✕')));
     }
   };
+  // Telefona bildirim kapalıysa nasıl açılacağını hatırlat
+  const phoneTip = phoneNotifyReady(app.content) ? null : h('p', { class: 'ed-warn ed-inbox-tip' },
+    `📱 Bunların telefonuna anında WhatsApp mesajı olarak gelmesini ister misin? `,
+    h('button', { type: 'button', class: 'ed-b small', onclick: () => { m.close(); openSettings('notify'); } }, 'Bildirimleri aç'));
   const m = modal({
     title: '💌 Gelen kutusu',
     wide: true,
     cls: 'ed-inbox-modal',
-    body: [listEl],
+    body: [phoneTip, listEl],
     actions: [
       h('button', {
         type: 'button', class: 'ed-b danger',
@@ -1491,6 +1618,14 @@ export async function startEditor(appApi) {
   app.start(data.content);
   S.baseline = serialize();
   document.title = 'Düzenleme · Deniz & Sena';
+  // Eski sürümde kuponlar için yazılan WhatsApp numarası artık gizli bildirim ayarlarında durur
+  const site = app.content.site;
+  if (site.whatsapp) {
+    const n = notifyOf(app.content);
+    if (!n.waPhone) n.waPhone = String(site.whatsapp);
+    site.whatsapp = '';
+    markDirty();
+  }
 
   buildBar();
   document.addEventListener('app:render', decorate);

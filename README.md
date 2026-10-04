@@ -40,8 +40,21 @@ kalp şeklinde havai fişeklerle biten bir final içerir.
 Sena bir aşk kuponunu kullandığında, “zamanı gelince aç” mektuplarından birini açtığında,
 sınavı bitirdiğinde, kazı kazanı kazıdığında, gizli notu bulduğunda, sonsuza dek sorusuna “Evet” dediğinde
 ya da sana bir not / yeni bir hayal yazdığında düzenleme modundaki **💌 Gelen** kutusunda görürsün.
-Ayarlar’dan WhatsApp numaranı yazarsan, kupon kullanıldığında sana WhatsApp mesajı da açılır.
+İnternet o an yoksa Sena’nın yazdıkları onun telefonunda bekler, bağlantı gelince kendiliğinden gönderilir.
 Sen giriş yapmışken sitede yaptığın denemeler “senin denemen” etiketiyle ayrı görünür.
+
+## 📱 Telefonuna anında haber
+
+Sena not bıraktığında, hayal eklediğinde, kupon kullandığında, mektup açtığında ya da “Evet” dediğinde
+telefonuna anında mesaj gelir. Ayarlamak için düzenleme modunda **⚙️ Ayarlar → 🔔 Bildirimler**:
+
+- **WhatsApp (ücretsiz, CallMeBot):** Bot numarasını (+34 644 05 92 17) rehberine ekle, ona WhatsApp’tan
+  `I allow callmebot to send me messages` yaz, gelen cevaptaki APIKEY’i numaranla birlikte Ayarlar’a gir ve
+  “Deneme gönder”e bas. Mesajlar sadece senin numarana gelir; Sena’nın bir şey göndermesi gerekmez.
+  Bot numarası değişirse [CallMeBot’un sayfasında](https://www.callmebot.com/blog/free-api-whatsapp-messages/) yazar.
+- **ntfy (yedek):** Ücretsiz ntfy uygulamasını kur, Ayarlar’da “Konu oluştur”a bas ve uygulamada o konuya abone ol.
+
+Düzenleme moduna sitede bir bağlantı yoktur; sadece adresin sonuna `/duzenle` yazarak girilir.
 
 ## 📖 Bölümler
 

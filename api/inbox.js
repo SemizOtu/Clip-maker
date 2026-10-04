@@ -1,13 +1,14 @@
 // Sena'dan Deniz'e: notlar, kullanılan kuponlar, açılan mektuplar, sınav sonucu…
-// POST   /api/inbox            → yeni kayıt (herkese açık, sınırlı)
+// POST   /api/inbox            → yeni kayıt + Deniz'in telefonuna bildirim (herkese açık, sınırlı)
 // GET    /api/inbox            → gelen kutusu (şifre gerekli)
 // PATCH  /api/inbox            → hepsini okundu say (şifre gerekli)
 // DELETE /api/inbox[?id=…]     → bir kaydı ya da hepsini sil (şifre gerekli)
-import { json, readJsonBody, assertSameOrigin, clientIp, route } from '../lib/http.js';
+import { json, readJsonBody, assertSameOrigin, clientIp, originOf, route } from '../lib/http.js';
 import { loadContent } from '../lib/content.js';
 import { canView, isAdmin } from '../lib/session.js';
 import { readJson, writeJson, ConflictError } from '../lib/store.js';
 import { allow, randomHex } from '../lib/security.js';
+import { notifyDeniz } from '../lib/notify.js';
 
 const INBOX_PATH = 'ozel/gelen-kutusu.json';
 const KEEP = 300;
@@ -15,8 +16,11 @@ const KEEP = 300;
 const TYPES = { not: 2000, hayal: 600, kupon: 300, mektup: 200, evet: 200, sinav: 300, kazi: 200, gizli: 200 };
 // Bu türler "bildirimler kapalı" olsa da gelir (Sena bilerek yazdı)
 const ALWAYS = new Set(['not', 'hayal']);
+// Tarayıcının her olaya verdiği kimlik: bağlantı kopup yeniden gönderilirse çift kayıt olmasın
+const CID_RE = /^[A-Za-z0-9_-]{6,40}$/;
 
 const str = (v, max) => (typeof v === 'string' ? v.replace(/\s+\n/g, '\n').trim().slice(0, max) : '');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function deviceOf(ua = '') {
   if (/iPhone/i.test(ua)) return 'iPhone';
@@ -27,24 +31,24 @@ function deviceOf(ua = '') {
   return 'Diğer';
 }
 
+// Oku → değiştir → "hâlâ o sürümse" yaz. Okuma yazmadan sonraki birkaç saniye eski
+// kalabildiği için reddedilirse kısa aralıklarla yeniden dener.
+// mutator null döndürürse yazılacak bir şey yoktur.
 async function update(mutator) {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     const doc = await readJson(INBOX_PATH);
     const value = doc ? doc.value : { items: [], readAt: null };
     if (!Array.isArray(value.items)) value.items = [];
     const next = mutator(value);
+    if (!next) return value;
     try {
       await writeJson(INBOX_PATH, next, doc ? { etag: doc.etag } : { create: true });
       return next;
     } catch (e) {
-      if (!(e instanceof ConflictError) || attempt === 3) throw e;
+      if (!(e instanceof ConflictError) || attempt >= 4) throw e;
+      await sleep(150 * 2 ** attempt + Math.random() * 120);
     }
   }
-  return null;
-}
-
-async function requireAdmin(request) {
-  return isAdmin(request);
 }
 
 const handlers = route({
@@ -65,6 +69,7 @@ const handlers = route({
     const text = str(body.text, TYPES[type]);
     const title = str(body.title, 160);
     if ((type === 'not' || type === 'hayal') && !text) return json({ error: 'Boş gönderilemez.' }, 400);
+    const cid = typeof body.cid === 'string' && CID_RE.test(body.cid) ? body.cid : null;
 
     const entry = {
       id: randomHex(6),
@@ -73,15 +78,32 @@ const handlers = route({
       text,
       at: new Date().toISOString(),
       device: deviceOf(request.headers.get('user-agent') || ''),
+      ...(cid ? { cid } : {}),
       // Deniz kendi denerken gelen kayıtlar ayrı işaretlenir
       ...(await isAdmin(request) ? { test: true } : {}),
     };
-    await update((v) => ({ ...v, items: [entry, ...v.items].slice(0, KEEP) }));
-    return json({ ok: true });
+
+    let stored = false;
+    let duplicate = false;
+    try {
+      await update((v) => {
+        duplicate = Boolean(cid && v.items.some((it) => it.cid === cid));
+        return duplicate ? null : { ...v, items: [entry, ...v.items].slice(0, KEEP) };
+      });
+      stored = true;
+    } catch (e) {
+      // Kaydedilemese bile telefon bildirimi gitsin; ikisi de olmazsa tarayıcı sonra yeniden dener
+      console.error('[POST /api/inbox] kaydedilemedi', e);
+    }
+    if (duplicate) return json({ ok: true, duplicate: true });
+
+    const sent = await notifyDeniz(content, entry, originOf(request));
+    if (!stored && !sent.count) return json({ error: 'Şu an iletilemedi; birazdan kendiliğinden tekrar denenecek.' }, 503);
+    return json({ ok: true, stored, notified: sent.count });
   },
 
   async GET(request) {
-    if (!(await requireAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
+    if (!(await isAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
     const doc = await readJson(INBOX_PATH);
     const value = doc ? doc.value : { items: [], readAt: null };
     const items = Array.isArray(value.items) ? value.items : [];
@@ -92,7 +114,7 @@ const handlers = route({
 
   async PATCH(request) {
     assertSameOrigin(request);
-    if (!(await requireAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
+    if (!(await isAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
     const now = new Date().toISOString();
     await update((v) => ({ ...v, readAt: now }));
     return json({ ok: true, readAt: now });
@@ -100,7 +122,7 @@ const handlers = route({
 
   async DELETE(request) {
     assertSameOrigin(request);
-    if (!(await requireAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
+    if (!(await isAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
     const id = new URL(request.url).searchParams.get('id');
     await update((v) => ({ ...v, items: id ? v.items.filter((it) => it.id !== id) : [] }));
     return json({ ok: true });

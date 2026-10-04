@@ -360,7 +360,6 @@ body.night-mode .topbar::before { background: linear-gradient(180deg, rgba(34, 6
 .menu-btn { margin-left: auto; }
 .menu-btn svg { animation: beat 2.4s ease-in-out infinite; }
 .music-btn { width: 44px; padding: 0; justify-content: center; }
-.edit-link { width: 44px; padding: 0; justify-content: center; font-size: 1.05rem; order: 2; }
 .music-btn .eq { display: none; gap: 2px; align-items: flex-end; height: 16px; }
 .music-btn .eq i { display: block; width: 3px; border-radius: 2px; background: var(--rose); animation: eq 1s ease-in-out infinite; }
 .music-btn .eq i:nth-child(2) { animation-delay: -.3s; }

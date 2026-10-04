@@ -7,7 +7,7 @@ import {
   loadContent, saveContent, validateContent, publicView, lockedView,
 } from '../lib/content.js';
 import { isAdmin, canView } from '../lib/session.js';
-import { ConflictError } from '../lib/store.js';
+import { ConflictError, strongEtag } from '../lib/store.js';
 
 const CONFLICT = 'Site bu arada başka bir sekmede ya da cihazda kaydedilmiş.';
 
@@ -32,18 +32,20 @@ const handlers = route({
     const body = await readJsonBody(request, 1_000_000);
     const next = validateContent(body.content);
     const force = body.force === true;
-    const current = await loadContent({ fresh: true });
+    const etag = typeof body.etag === 'string' && body.etag ? strongEtag(body.etag) : null;
 
-    if (!force && current.etag && body.etag !== current.etag) {
-      return json({ error: CONFLICT, conflict: true }, 409);
-    }
-    if (current.etag && JSON.stringify(current.value) === JSON.stringify(next)) {
+    // Hiçbir şey değişmediyse yazma (Blob işlem kotası boşa gitmesin)
+    const current = await loadContent({ fresh: true });
+    if (!force && etag && etag === current.etag && JSON.stringify(current.value) === JSON.stringify(next)) {
       return json({ ok: true, etag: current.etag, unchanged: true });
     }
 
+    // Çakışma kontrolünü Blob'un kendisi yapar: belge, düzenleyicinin bildiği sürümde
+    // değilse yazma reddedilir. (Okuma birkaç saniye eski olabildiği için burada
+    // okunan etiketle karşılaştırmak yanlış "başka yerde kaydedilmiş" uyarısı veriyordu.)
     let saved;
     try {
-      saved = await saveContent(next, { etag: current.etag, force });
+      saved = await saveContent(next, force ? { force: true } : { etag });
     } catch (e) {
       if (e instanceof ConflictError) return json({ error: CONFLICT, conflict: true }, 409);
       throw e;

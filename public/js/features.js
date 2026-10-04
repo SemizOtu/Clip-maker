@@ -171,20 +171,81 @@ export function celebrateSpecial() {
 /* ------------------------------------------------------------------ */
 /* Deniz'e bildirim                                                    */
 /* ------------------------------------------------------------------ */
-export async function sendEvent(type, { title = '', text = '' } = {}, { once = null } = {}) {
-  if (state.editing || state.previewing) return { skipped: true };
-  if (once && store.get(`ds:olay:${once}`)) return { skipped: true };
+// Gönderilemeyenler bu cihazda bekler; internet gelince ya da site tekrar açılınca gider
+const OUTBOX = 'ds:giden';
+const OUTBOX_DAYS = 14;
+let flushing = false;
+let flushTimer = 0;
+
+const readOutbox = () => {
+  try {
+    const list = JSON.parse(store.get(OUTBOX) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
+const writeOutbox = (list) => (list.length ? store.set(OUTBOX, JSON.stringify(list.slice(-30))) : store.remove(OUTBOX));
+
+function newCid() {
+  const b = new Uint8Array(12);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => (x % 36).toString(36)).join('');
+}
+
+async function postEvent(ev) {
   try {
     const res = await fetch('/api/inbox', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, title, text }),
+      body: JSON.stringify({ type: ev.type, title: ev.title, text: ev.text, cid: ev.cid }),
+      keepalive: true,
     });
-    if (res.ok && once) store.set(`ds:olay:${once}`, '1');
-    return { ok: res.ok, status: res.status };
+    // 400/413: istek hatalı, tekrar denemenin anlamı yok; diğerleri (kilit, yoğunluk, sunucu) sonra denenir
+    return { ok: res.ok, status: res.status, retry: !res.ok && res.status !== 400 && res.status !== 413 };
   } catch {
-    return { ok: false };
+    return { ok: false, retry: true };
   }
+}
+
+function scheduleFlush(ms = 60_000) {
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(flushOutbox, ms);
+}
+
+export async function flushOutbox() {
+  if (flushing || state.editing || state.previewing) return;
+  const list = readOutbox();
+  if (!list.length) return;
+  flushing = true;
+  const keep = [];
+  try {
+    for (const ev of list) {
+      if (Date.now() - (ev.t || 0) > OUTBOX_DAYS * 86_400_000) continue;
+      const res = await postEvent(ev);
+      if (!res.ok && res.retry) keep.push(ev);
+    }
+  } finally {
+    // gönderilirken yeni eklenenler de kalsın
+    const added = readOutbox().filter((e) => !list.some((x) => x.cid === e.cid));
+    writeOutbox([...keep, ...added]);
+    flushing = false;
+  }
+  if (readOutbox().length) scheduleFlush();
+}
+
+export async function sendEvent(type, { title = '', text = '' } = {}, { once = null } = {}) {
+  if (state.editing || state.previewing) return { skipped: true };
+  if (once && store.get(`ds:olay:${once}`)) return { skipped: true };
+  const ev = { type, title, text, cid: newCid(), t: Date.now() };
+  const res = await postEvent(ev);
+  if (!res.ok && res.retry) {
+    writeOutbox([...readOutbox(), ev]);
+    scheduleFlush();
+    res.queued = true;
+  }
+  if (once && (res.ok || res.queued)) store.set(`ds:olay:${once}`, '1');
+  return res;
 }
 
 /* ------------------------------------------------------------------ */
@@ -501,14 +562,12 @@ export async function useCoupon(i, btn) {
   wrap.classList.add('used');
   const r = wrap.getBoundingClientRect();
   fx().burst(r.left + r.width - 60, r.top + r.height / 2, 18, { power: 1.1 });
-  sendEvent('kupon', { title: `${cp.icon || ''} ${cp.title}`.trim(), text: cp.text || '' });
-
-  const num = String(state.content.site?.whatsapp || '').replace(/\D/g, '');
-  if (num) {
-    const text = `💌 Aşk kuponumu kullanıyorum: ${cp.icon || ''} ${cp.title} — ${cp.text}`;
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-  }
-  toast(`Kupon kullanıldı! ${me ? `${me} ` : ''}haberdar edildi 💌`, { ms: 4200 });
+  // Haber doğrudan Deniz'in telefonuna gider; Sena'nın bir şey göndermesi gerekmez
+  const res = await sendEvent('kupon', { title: `${cp.icon || ''} ${cp.title}`.trim(), text: cp.text || '' });
+  if (res.skipped) toast('Önizleme: gerçekte kupon kullanılınca sana haber giderdi 💌', { ms: 4200 });
+  else if (res.ok) toast(`Kupon kullanıldı! ${me ? `${me} ` : ''}haberdar edildi 💌`, { ms: 4200 });
+  else if (res.queued) toast('Kupon kullanıldı! 💝 İnternet gelince haberi kendiliğinden gidecek.', { ms: 5200 });
+  else toast('Kupon kullanıldı 💝 ama haber gönderilemedi; bir daha dokunup tekrar deneyebilirsin.', { error: true, ms: 5200 });
 }
 
 /* ------------------------------------------------------------------ */
@@ -523,17 +582,20 @@ export async function submitForm(form) {
   btn.disabled = true;
   const res = await sendEvent(kind === 'dream' ? 'hayal' : 'not', { text });
   btn.disabled = false;
-  if (!res.ok && !res.skipped) {
-    toast(res.status === 429 ? 'Biraz yavaş 🙂 Birazdan tekrar dene.' : 'Gönderilemedi; internet bağlantını kontrol edip tekrar dener misin?', { error: true, ms: 5000 });
+  if (!res.ok && !res.skipped && !res.queued) {
+    toast(res.status === 413 ? 'Biraz uzun oldu; kısaltıp tekrar dener misin?' : 'Gönderilemedi; bir daha dener misin?', { error: true, ms: 5000 });
     return;
   }
   const r = btn.getBoundingClientRect();
   fx().burst(r.left + r.width / 2, r.top + r.height / 2, 20, { power: 1.2 });
   const thanks = kind === 'dream' ? state.content.dreams.suggestThanks : state.content.finale.replyThanks;
+  if (res.queued) {
+    toast('İnternette bir aksaklık var ama merak etme: yazdığın bu cihazda saklandı, bağlantı gelince kendiliğinden gönderilecek 💌', { ms: 7000 });
+  }
   if (kind === 'dream') {
     field.value = '';
     shootingStar({ front: true });
-    toast(res.skipped ? 'Önizleme: gerçekte bu hayal sana gelirdi 💭' : thanks, { ms: 4500 });
+    if (!res.queued) toast(res.skipped ? 'Önizleme: gerçekte bu hayal sana gelirdi 💭' : thanks, { ms: 4500 });
   } else {
     form.replaceWith(h('p', { class: 'reply-thanks script' }, res.skipped ? 'Önizleme: gerçekte bu not sana gelirdi 💌' : thanks));
   }

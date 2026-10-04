@@ -690,10 +690,10 @@ async function boot({ afterUnlock = false } = {}) {
     return;
   }
   app.start(data.content);
-  if (state.admin) {
-    $('#topbar').append(h('a', { class: 'pill edit-link', href: '/duzenle', title: 'Düzenleme moduna geç' }, '✏️'));
-  }
+  // Düzenleme moduna sadece adresin sonuna /duzenle yazarak girilir (sitede bağlantısı yok)
   if (afterUnlock) toast('Hoş geldin 💖', { ms: 2600 });
+  // Daha önce internet yokken gönderilemeyen haberler varsa şimdi gönder
+  F.flushOutbox();
 }
 
 async function init() {
@@ -714,6 +714,7 @@ async function init() {
     }
     return;
   }
+  addEventListener('online', () => F.flushOutbox());
   await boot();
 }
 
