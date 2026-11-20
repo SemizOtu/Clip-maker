@@ -13,7 +13,7 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 // Bugünün hatırlatma satırları (sadece hesaplama; test edilebilsin diye ayrı)
-export function reminderLines(content, inboxItems, now = new Date()) {
+export function reminderLines(content, inboxItems, now = new Date(), askDays = {}) {
   const names = content.names || {};
   const lines = [];
   for (const it of upcoming(content, now, { horizon: 7 })) {
@@ -37,6 +37,13 @@ export function reminderLines(content, inboxItems, now = new Date()) {
       lines.push(`📮 ${names.you || 'Sena'} ${formatDate(when)} günü geleceğe bir mektup yazmıştı; bugün açıldı:\n“${String(it.text || '').trim()}”`);
     }
   }
+  // Günün sorusu: Sena dünkünü cevapladı, Deniz cevaplamadı
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yd = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const ask = askDays && askDays[yd];
+  if (ask && ask.sena && !ask.deniz) {
+    lines.push(`❓ ${names.you || 'Sena'} dünkü soruyu cevapladı: “${ask.q}”. Sen de cevaplarsan iki cevap açılacak 💞`);
+  }
   return lines;
 }
 
@@ -54,7 +61,7 @@ const handlers = route({
     }
 
     const backups = [];
-    for (const p of ['ozel/icerik.json', 'ozel/gelen-kutusu.json']) {
+    for (const p of ['ozel/icerik.json', 'ozel/gelen-kutusu.json', 'ozel/sorular.json']) {
       try {
         if (await copyFile(p, `ozel/yedek/gunluk/${today}/${p.split('/').pop()}`)) backups.push(p);
       } catch (e) {
@@ -64,7 +71,8 @@ const handlers = route({
 
     const { value: content } = await loadContent({ fresh: true });
     const inbox = await readJson('ozel/gelen-kutusu.json').catch(() => null);
-    const lines = reminderLines(content, inbox && inbox.value && inbox.value.items, now);
+    const asks = await readJson('ozel/sorular.json').catch(() => null);
+    const lines = reminderLines(content, inbox && inbox.value && inbox.value.items, now, asks && asks.value && asks.value.days);
     let sent = 0;
     if (lines.length) {
       const host = process.env.VERCEL_PROJECT_PRODUCTION_URL;

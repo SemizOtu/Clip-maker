@@ -1163,3 +1163,104 @@ export function futureOpenAt(value) {
   return { at: `${ymd(opt.date)}T09:00`, date: opt.date };
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Günün sorusu: ikimiz de cevaplayınca iki cevap birden açılır         */
+/* ------------------------------------------------------------------ */
+let ask = null;
+
+function askNames() {
+  const n = state.content?.names || {};
+  const me = ask && ask.who === 'deniz' ? (n.me || 'Deniz') : (n.you || 'Sena');
+  const other = ask && ask.who === 'deniz' ? (n.you || 'Sena') : (n.me || 'Deniz');
+  return { me, other };
+}
+
+function answerView(day) {
+  const { me, other } = askNames();
+  if (!day.mine) {
+    return h('form', { class: 'ask-form', 'data-form': 'ask', 'data-date': day.date },
+      day.otherAnswered ? h('p', { class: 'ask-note' }, `💌 ${other} cevapladı bile! Sen de cevaplayınca ikisi birden açılacak.`) : null,
+      h('textarea', { class: 'field', name: 'text', rows: '3', maxlength: '600', required: true, placeholder: `${me} olarak cevabın…`, 'aria-label': 'Cevabın' }),
+      h('button', { class: 'btn', type: 'submit' }, 'Cevabımı mühürle 💌'));
+  }
+  const bubble = (name, text, cls) => h('div', { class: `ask-bubble ${cls}` }, h('b', {}, name), h('p', {}, text));
+  return h('div', { class: `ask-answers${day.other ? ' both' : ''}` },
+    bubble(`Sen (${me})`, day.mine, 'mine'),
+    day.other
+      ? bubble(other, day.other, 'other')
+      : h('div', { class: 'ask-bubble waiting' }, h('b', {}, other), h('p', {}, `⏳ Henüz cevaplamadı; cevaplayınca burada açılacak.`)));
+}
+
+function renderAsk(box) {
+  if (!ask || !box) return;
+  $('[data-ask-q]', box).textContent = ask.today.q;
+  $('[data-ask-body]', box).replaceChildren(answerView(ask.today));
+  const intro = $('.ask-intro', box);
+  if (intro && !state.editing) intro.hidden = Boolean(ask.today.other);
+  const btn = $('.ask-archive-btn', box);
+  const arch = $('[data-ask-archive]', box);
+  btn.hidden = !ask.archive.length;
+  btn.textContent = `📖 Cevaplarımız (${ask.archive.length})`;
+  arch.replaceChildren(...ask.archive.map((d) => h('article', { class: 'ask-day' },
+    h('p', { class: 'ask-day-date' }, formatDate(parseLocal(d.date), { weekday: true })),
+    h('p', { class: 'ask-day-q' }, d.q),
+    answerView(d))));
+}
+
+export async function loadAsk(sec) {
+  const box = $('[data-ask]', sec);
+  if (!box) return;
+  try {
+    const res = await fetch('/api/soru', { cache: 'no-store', credentials: 'same-origin' });
+    if (!res.ok) throw new Error(String(res.status));
+    ask = await res.json();
+    renderAsk(box);
+  } catch {
+    $('[data-ask-body]', box).replaceChildren(h('p', { class: 'ask-wait' }, 'Soru şu an yüklenemedi; biraz sonra tekrar dene.'));
+  }
+}
+
+export function toggleAskArchive(btn) {
+  const arch = $('[data-ask-archive]', btn.closest('[data-ask]'));
+  arch.hidden = !arch.hidden;
+  if (!arch.hidden) arch.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+}
+
+export async function submitAnswer(form) {
+  const box = form.closest('[data-ask]');
+  const field = form.elements.text;
+  const text = field.value.trim();
+  if (!text) { field.focus(); return; }
+  const btn = $('button[type="submit"]', form);
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/soru', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ text, date: form.dataset.date }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Gönderilemedi; bir daha dener misin?');
+    const date = form.dataset.date;
+    const r = btn.getBoundingClientRect();
+    const archOpen = !$('[data-ask-archive]', box).hidden;
+    ask = data;
+    renderAsk(box);
+    $('[data-ask-archive]', box).hidden = !archOpen;
+    const day = data.today.date === date ? data.today : data.archive.find((d) => d.date === date);
+    fx().sparkle(r.left + r.width / 2, r.top + r.height / 2, 24, { power: 1.1 });
+    if (day && day.other) {
+      fx().confetti({ count: 70 });
+      toast('💞 İki cevap da açıldı!', { ms: 3600 });
+    } else {
+      const o = askNames().other;
+      const da = /[aıou][^aeıioöuü]*$/i.test(o.toLocaleLowerCase('tr')) ? 'da' : 'de';
+      toast(`💌 Cevabın mühürlendi; ${o} ${da} cevaplayınca açılacak.`, { ms: 4200 });
+    }
+  } catch (e) {
+    btn.disabled = false;
+    toast(e.message || 'Gönderilemedi; bir daha dener misin?', { error: true, ms: 4500 });
+  }
+}

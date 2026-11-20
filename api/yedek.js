@@ -17,14 +17,16 @@ const handlers = route({
     if (url.searchParams.has('indir')) {
       const { value } = await loadContent({ fresh: true });
       const inbox = await readJson('ozel/gelen-kutusu.json');
+      const asks = await readJson('ozel/sorular.json');
       const media = await listMedia();
       const d = new Date();
       const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const body = JSON.stringify({
         alindi: new Date().toISOString(),
-        aciklama: 'Deniz & Sena sitesinin yedeği: bütün yazılar (icerik), gelen kutusu ve yüklenen dosyaların listesi. Fotoğrafların kendileri “Yüklediklerim”den tek tek indirilebilir.',
+        aciklama: 'Deniz & Sena sitesinin yedeği: bütün yazılar (icerik), gelen kutusu, günün sorusu cevapları ve yüklenen dosyaların listesi. Fotoğrafların kendileri “Yüklediklerim”den tek tek indirilebilir.',
         icerik: value,
         gelenKutusu: inbox ? inbox.value : { items: [] },
+        gununSorusu: asks ? asks.value : { days: {} },
         medya: media.map((m) => ({ dosya: m.pathname, boyut: m.size, yuklendi: m.uploadedAt })),
       }, null, 2);
       return new Response(body, {

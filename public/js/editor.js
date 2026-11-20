@@ -48,6 +48,7 @@ const LISTS = {
   'quiz.questions': { add: '+ Yeni soru ekle', make: () => ({ q: 'Yeni soru?', options: ['Cevap 1', 'Cevap 2', 'Cevap 3', 'Cevap 4'], answer: 0, note: '' }) },
   'dreams.items': { add: '+ Yeni hayal ekle', make: () => ({ text: 'Yeni bir hayal…', done: false }) },
   'surprise.coupons': { add: '+ Yeni kupon ekle', make: () => ({ icon: '💝', title: 'Yeni Kupon', text: 'Kuponun açıklaması…' }) },
+  'home.askQuestions': { add: '+ Soru ekle', make: () => 'Yeni bir soru?', compact: true },
   'future.events': { add: '+ Özel bir gün ekle', make: () => ({ icon: '📌', title: 'Yeni bir gün', date: ymdLocal(new Date(Date.now() + 30 * 86_400_000)), yearly: false }) },
   'future.capsules': { add: '+ Zaman kapsülü ekle', make: () => ({ icon: '💌', title: 'Bir yıl sonra aç', openAt: inAYear(), text: 'Bu satırları okuduğunda bir yıl geçmiş olacak…' }) },
 };
@@ -800,6 +801,24 @@ function decorate() {
         },
       }, h('i'))));
   }
+  for (const blk of $$('.block-sub')) {
+    if ($(':scope > .ed-blk-bar', blk)) continue;
+    const key = blk.dataset.block;
+    const visible = app.content.site.chapters[key] !== false;
+    const name = app.content[key]?.title || key;
+    blk.prepend(h('div', { class: 'ed-ui ed-ch-bar ed-blk-bar' },
+      h('span', {}, `“${name}” kısmı · ${visible ? 'Sena görebilir' : 'Gizli — Sena görmez'}`),
+      h('button', {
+        type: 'button', class: `ed-toggle small${visible ? ' on' : ''}`, role: 'switch', 'aria-checked': visible ? 'true' : 'false',
+        title: visible ? 'Bu kısmı gizle' : 'Bu kısmı göster',
+        onclick: () => {
+          app.content.site.chapters[key] = !visible;
+          app.rerender();
+          markDirty();
+          toast(visible ? `“${name}” gizlendi; Sena görmeyecek.` : `“${name}” tekrar görünür.`);
+        },
+      }, h('i'))));
+  }
 
   const counter = $('[data-counter]');
   if (counter && !$('.ed-counter-btn', counter)) {
@@ -822,7 +841,7 @@ function decorate() {
     intro.append(h('div', { class: 'ed-ui ed-inline-tools ed-intro-tools' },
       h('button', { type: 'button', class: 'ed-b', onclick: () => openSettings('lock') }, '🔒 Özel kilit')));
   }
-  const galleryHead = $('#ch-gallery .ch-head');
+  const galleryHead = $('#blk-gallery .ch-head');
   if (galleryHead && !$('.ed-gallery-tools', galleryHead)) {
     galleryHead.append(h('div', { class: 'ed-ui ed-inline-tools ed-gallery-tools' },
       h('button', { type: 'button', class: 'ed-b primary', onclick: () => addGalleryPhotos() }, '📷 Fotoğraf yükle'),
@@ -1147,7 +1166,8 @@ function openSettings(focus) {
   });
   updateLockWarn();
 
-  const chapterRows = CHAPTERS.map((ch) => {
+  const chapterRows = CHAPTERS.flatMap((ch) => ch.blocks).map((key) => {
+    const ch = { key, sub: !CHAPTERS.some((x) => x.key === key) };
     const vis = c.site.chapters[ch.key] !== false;
     const btn = h('button', {
       type: 'button', class: `ed-toggle small${vis ? ' on' : ''}`, role: 'switch', 'aria-checked': vis ? 'true' : 'false', title: 'Görünür / gizli',
@@ -1159,11 +1179,11 @@ function openSettings(focus) {
         markDirty();
       },
     }, h('i'));
-    return h('div', { class: 'ed-chapter-row' },
+    return h('div', { class: `ed-chapter-row${ch.sub ? ' sub' : ''}` },
       btn,
       h('div', { class: 'ed-chapter-inputs' },
-        boundInput(`${ch.key}.title`, { placeholder: 'Bölüm adı' }),
-        boundInput(`${ch.key}.desc`, { placeholder: 'Kısa açıklama' })));
+        boundInput(`${ch.key}.title`, { placeholder: ch.sub ? 'Kısmın adı' : 'Bölüm adı' }),
+        ch.sub ? null : boundInput(`${ch.key}.desc`, { placeholder: 'Kısa açıklama' })));
   });
 
   const pwMsg = h('p', { class: 'ed-result' });
@@ -1216,7 +1236,7 @@ function openSettings(focus) {
       h('p', { class: 'ed-note' }, `Zarf açıldığında yavaşça başlar; sağ üstteki notadan durdurulabilir. En fazla ${MAX_MUSIC_MB} MB.`)),
     chapters: h('section', { class: 'ed-section' },
       h('h4', {}, '📖 Bölümler'),
-      h('p', { class: 'ed-note' }, 'Anahtarı kapattığın bölümü Sena görmez. Adlar menüde ve sayfa geçişindeki kalpte görünür.'),
+      h('p', { class: 'ed-note' }, 'Anahtarı kapattığın bölümü ya da kısmı Sena görmez. Girintili olanlar, üstlerindeki bölümün içindeki kısımlardır. Adlar menüde ve sayfa geçişindeki kalpte görünür.'),
       chapterRows),
     lock: h('section', { class: 'ed-section' },
       h('h4', {}, '🔒 Özel kilit (isteğe bağlı)'),

@@ -10,18 +10,22 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
+// Sayfalar: her biri bir ya da birkaç içerik bloğundan oluşur. Blok anahtarları içerikteki
+// bölüm anahtarlarıyla aynı (veri hiç değişmedi); ilki sayfanın başlığını verir.
+// slugs: eski adresler (#/anilarimiz gibi) o sayfadaki ilgili kısma gider.
 export const CHAPTERS = [
-  { key: 'home', slug: 'biz' },
-  { key: 'story', slug: 'hikayemiz' },
-  { key: 'gallery', slug: 'anilarimiz' },
-  { key: 'letter', slug: 'mektubum' },
-  { key: 'reasons', slug: 'neden-sen' },
-  { key: 'quiz', slug: 'sinav' },
-  { key: 'dreams', slug: 'hayallerimiz' },
-  { key: 'future', slug: 'gelecegimiz' },
-  { key: 'surprise', slug: 'surprizler' },
-  { key: 'finale', slug: 'sonsuza-dek' },
+  { key: 'home', slug: 'biz', blocks: ['home'] },
+  { key: 'story', slug: 'hikayemiz', blocks: ['story', 'gallery'] },
+  { key: 'letter', slug: 'mektubum', blocks: ['letter', 'reasons'] },
+  { key: 'future', slug: 'gelecegimiz', blocks: ['future', 'dreams'] },
+  { key: 'surprise', slug: 'surprizler', blocks: ['surprise', 'quiz'] },
+  { key: 'finale', slug: 'sonsuza-dek', blocks: ['finale'] },
 ];
+export const BLOCK_SLUGS = { gallery: 'anilarimiz', reasons: 'neden-sen', dreams: 'hayallerimiz', quiz: 'sinav' };
+export const chapterOf = (key) => CHAPTERS.find((c) => c.blocks.includes(key)) || null;
+export const isPrimary = (key) => CHAPTERS.some((c) => c.key === key);
+// Bir blok Sena'ya görünür mü (düzenlerken hepsi görünür)
+export const blockVisible = (key) => state.editing || state.content?.site?.chapters?.[key] !== false;
 
 export const state = {
   content: null,

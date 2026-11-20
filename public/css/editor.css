@@ -568,3 +568,16 @@ body.editing .fut-when, body.editing .future-form textarea { opacity: .6; pointe
 .ed-backup-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 1px solid #f6d3dd; font-size: .88rem; }
 .ed-flash { animation: ed-flash 1.6s ease; }
 @keyframes ed-flash { 0%, 100% { box-shadow: none; } 25%, 70% { box-shadow: 0 0 0 4px rgba(224, 36, 94, .45), 0 0 30px rgba(224, 36, 94, .35); } }
+
+/* Sayfa içindeki kısımlar */
+.block-sub > .ed-blk-bar { position: static; margin: 0 auto 18px; max-width: 560px; }
+.block.is-hidden-blk > *:not(.ed-blk-bar) { opacity: .45; filter: grayscale(.5); }
+.block.is-hidden-blk > .ed-blk-bar { background: #fff1d6; color: #8a4a12; }
+.ed-chapter-row.sub { margin-left: 26px; }
+
+/* Günün sorusu (düzenleme) ve hayal birikimi */
+.ask-extra { margin-top: 14px; text-align: left; }
+.ask-q-list { display: grid; gap: 6px; margin: 6px 0 0; padding-left: 22px; }
+.ask-q-item { font-size: 1.05rem; }
+.dream-fund-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: .8rem; font-weight: 700; color: var(--ink-soft); }
+.ed-num { width: 110px; padding: 6px 10px; }

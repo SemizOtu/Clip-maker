@@ -1,10 +1,10 @@
 // Sena’ya ❤ — sitenin ana akışı: içerik, kapak, bölümler arası geçiş ve olaylar
 import {
-  state, $, $$, h, sleep, rand, reducedMotion, CHAPTERS, visibleChapters, chapterNumber,
+  state, $, $$, h, sleep, rand, reducedMotion, CHAPTERS, visibleChapters, chapterNumber, chapterOf, BLOCK_SLUGS,
   getPath, setPath, pointOf, toast, dialog, mediaUrl, store,
 } from './core.js';
 import { startBackground, createFX, typewriter } from './effects.js';
-import { RENDERERS, renderIntro, renderLock, renderMenu } from './chapters.js';
+import { RENDERERS, renderChapter, renderIntro, renderLock, renderMenu } from './chapters.js';
 import * as F from './features.js';
 
 const EDIT = /^\/duzenle\/?$/.test(location.pathname) || new URLSearchParams(location.search).has('duzenle');
@@ -60,7 +60,7 @@ state.observe = (el) => io && io.observe(el);
 function renderAll() {
   const root = $('#chapters');
   root.textContent = '';
-  for (const ch of visibleChapters()) root.append(RENDERERS[ch.key]());
+  for (const ch of visibleChapters()) root.append(renderChapter(ch));
   renderIntro($('#intro'));
   renderMenu($('#menu'));
   setupMusic();
@@ -131,7 +131,10 @@ async function heartWipe(point, card, swap, reveal = () => {}) {
 function keyFromHash() {
   const slug = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   const ch = visibleChapters().find((c) => c.slug === slug);
-  return ch ? ch.key : null;
+  if (ch) return ch.key;
+  // eski adresler: #/anilarimiz → Hikâyemiz sayfasındaki Anılarımız kısmı
+  const block = Object.keys(BLOCK_SLUGS).find((k) => BLOCK_SLUGS[k] === slug);
+  return block && visibleChapters().some((c) => c.key === chapterOf(block)?.key) ? block : null;
 }
 
 function setHash(key) {
@@ -147,9 +150,19 @@ function relativeKey(step) {
   return list[j]?.key || list[0]?.key;
 }
 
+// Sayfanın içindeki bir kısma yumuşakça kay
+function scrollToBlock(key) {
+  const el = $(`#blk-${key}`);
+  if (el) setTimeout(() => el.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' }), 80);
+}
+
 export async function go(target, point, { push = true } = {}) {
   if (state.busy) return;
-  if (target === state.current) { closeMenu(); return; }
+  // Bir alt kısım istendiyse (ör. 'gallery') o kısmın sayfasına git, sonra oraya kay
+  const owner = target ? chapterOf(target) : null;
+  const block = owner && owner.key !== target ? target : null;
+  if (block) target = owner.key;
+  if (target === state.current) { closeMenu(); if (block) scrollToBlock(block); return; }
   state.busy = true;
   const toIntro = !target;
   const card = toIntro
@@ -164,6 +177,7 @@ export async function go(target, point, { push = true } = {}) {
   } finally {
     state.busy = false;
   }
+  if (block) scrollToBlock(block);
 }
 state.go = go;
 
@@ -223,6 +237,7 @@ function startBehaviors(key) {
     if (word) state.stops.push(typewriter(word, state.content.home.rotating || []));
     state.stops.push(F.startCounter(sec));
     F.celebrateSpecial();
+    F.loadAsk(sec);
     const stats = $('.stats', sec);
     if (stats && !state.editing) {
       const seen = new IntersectionObserver((entries) => {
@@ -281,7 +296,7 @@ async function openEnvelope() {
   await sleep(reducedMotion ? 200 : 1750);
   const letter = $('.env-letter', env).getBoundingClientRect();
   state.busy = false;
-  const first = state.startKey && visibleChapters().some((c) => c.key === state.startKey) ? state.startKey : visibleChapters()[0]?.key;
+  const first = state.startKey && visibleChapters().some((c) => c.blocks.includes(state.startKey)) ? state.startKey : visibleChapters()[0]?.key;
   await go(first, { x: letter.left + letter.width / 2, y: letter.top + letter.height / 2 });
 }
 
@@ -394,6 +409,7 @@ function bindEvents() {
       const a = act.dataset.action;
       if (a === 'menu-close') { closeMenu(); return; }
       if (a === 'enter') { go(visibleChapters()[0]?.key, pointOf(e, act)); return; }
+      if (a === 'ask-archive') { F.toggleAskArchive(act); return; }
       if (state.editing) return;
       if (a === 'flip-all') {
         const cards = $$('.flip', act.closest('.chapter'));
@@ -423,10 +439,9 @@ function bindEvents() {
       if (a === 'quiz-start') { F.startQuiz(act.closest('[data-quiz]')); return; }
       if (a === 'scratch-again') {
         store.remove('ds:kazi');
-        const sec = act.closest('.chapter');
+        const blk = act.closest('[data-block="surprise"]');
         const fresh = RENDERERS.surprise();
-        sec.replaceWith(fresh);
-        fresh.classList.add('active');
+        blk.replaceWith(fresh);
         observeAll();
         requestAnimationFrame(() => F.initScratch(fresh));
         return;
@@ -480,6 +495,7 @@ function bindEvents() {
     if (!(form instanceof HTMLFormElement) || !form.dataset.form) return;
     e.preventDefault();
     if (form.dataset.form === 'unlock') tryUnlock(form);
+    else if (form.dataset.form === 'ask') F.submitAnswer(form);
     else if (!state.editing) F.submitForm(form);
   });
 
@@ -661,7 +677,7 @@ export const app = {
     bindEvents();
     const key = keyFromHash();
     state.startKey = key;
-    if (state.editing && key) showChapter(key); else showIntro();
+    if (state.editing && key) showChapter(chapterOf(key)?.key || key); else showIntro();
     document.body.classList.remove('is-loading');
   },
 };

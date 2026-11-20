@@ -1,11 +1,12 @@
 // Bölümlerin HTML'ini içerikten üretir (izleme ve düzenleme modu için)
 import {
   state, h, svg, getPath, mediaUrl, heartSvg, arrowSvg, sparkleSvg, checkSvg, flourish, waxSeal,
-  visibleChapters, chapterNumber, paragraphs, HEART_PATH, store,
+  visibleChapters, chapterNumber, paragraphs, HEART_PATH, store, isPrimary, blockVisible,
 } from './core.js';
 import { splitLetters, splitWords } from './effects.js';
 import { counterParts, statsList, specialDays, dailyNote, couponUsed, openedLetter, quizQuestions, openedCapsule, futureWhenOptions } from './features.js';
 import { upcoming, parseLocal, formatDate, remaining, genitive } from './takvim.js';
+import { questionFor } from './sorular.js';
 
 const POLAROID_TILT = [-3.5, 2.5, -1.5, 4, -2.5, 1.5, -4, 3];
 
@@ -57,19 +58,42 @@ function heartPhoto(path, captionPath) {
 /* ------------------------------------------------------------------ */
 /* Bölüm iskeleti                                                      */
 /* ------------------------------------------------------------------ */
+// Bir içerik bloğu (eski bölümlerin her biri). Sayfa bunları alt alta dizer.
 function chapterShell(key, ...content) {
   const hidden = state.editing && state.content.site.chapters[key] === false;
+  return h('div', {
+    class: `block block-${key}${isPrimary(key) ? ' block-main' : ' block-sub'}${hidden ? ' is-hidden-blk' : ''}`,
+    id: `blk-${key}`,
+    'data-block': key,
+  }, ...content);
+}
+
+// Sayfa: ilk blok başlığı verir, diğerleri kendi küçük başlıklarıyla gelir
+export function renderChapter(ch) {
+  const hidden = state.editing && state.content.site.chapters[ch.key] === false;
+  const blocks = ch.blocks
+    // Hayallerimiz, Geleceğimiz'in içinde yaklaşan günlerden hemen sonra çizilir
+    .filter((k) => !(ch.key === 'future' && k === 'dreams'))
+    .filter((k, i) => i === 0 || blockVisible(k))
+    .map((k) => RENDERERS[k]());
   return h('section', {
-    class: `chapter ch-${key}${hidden ? ' is-hidden-ch' : ''}`,
-    id: `ch-${key}`,
-    'data-ch': key,
-    'aria-label': state.content[key]?.title || '',
-  }, h('div', { class: 'wrap' }, ...content, chNav(key)));
+    class: `chapter ch-${ch.key}${hidden ? ' is-hidden-ch' : ''}`,
+    id: `ch-${ch.key}`,
+    'data-ch': ch.key,
+    'aria-label': state.content[ch.key]?.title || '',
+  }, h('div', { class: 'wrap' }, ...blocks, chNav(ch.key)));
 }
 
 function chHead(key, { intro = true } = {}) {
   const c = state.content[key];
   const long = String(c.title || '').length > 15 ? ' long' : '';
+  if (!isPrimary(key)) {
+    // Sayfanın ikinci kısmı: küçük bir ara başlık
+    return h('header', { class: 'ch-head sub-head' },
+      h('span', { class: 'sub-divider reveal', 'aria-hidden': 'true' }, heartSvg()),
+      T('h2', `${key}.title`, `ch-title sub script shimmer ink${long}`),
+      intro && c.intro != null ? T('p', `${key}.intro`, 'ch-intro reveal', { style: { '--d': '.2s' } }) : null);
+  }
   return h('header', { class: 'ch-head' },
     h('p', { class: 'ch-eyebrow reveal' }, `Bölüm ${chapterNumber(key)}`),
     T('h2', `${key}.title`, `ch-title script shimmer ink${long}`),
@@ -148,6 +172,20 @@ function renderHome() {
       h('p', { class: 'daily-date' }, new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })),
       h('p', { class: 'daily-text' }, dailyNote())) : null;
 
+  // Günün sorusu: ikimiz de cevaplayınca açılır (cevaplar sunucudan yüklenir)
+  const ask = h('section', { class: 'ask reveal', 'data-ask': '' },
+    h('p', { class: 'ask-kicker' }, `❓ ${formatDate(new Date(), { year: false, weekday: true })}`),
+    T('h3', 'home.askTitle', 'ask-title script'),
+    h('p', { class: 'ask-q', 'data-ask-q': '' }, questionFor(new Date(), c.askQuestions)),
+    h('div', { class: 'ask-body', 'data-ask-body': '' }, h('p', { class: 'ask-wait' }, 'Yükleniyor…')),
+    T('p', 'home.askIntro', 'ask-intro'),
+    h('button', { class: 'link-btn ask-archive-btn', type: 'button', 'data-action': 'ask-archive', hidden: true }, '📖 Cevaplarımız'),
+    h('div', { class: 'ask-archive', 'data-ask-archive': '', hidden: true }),
+    E ? h('div', { class: 'ask-extra' },
+      h('p', { class: 'ed-note-inline' }, 'Buradan sen de cevaplayabilirsin. İstersen kendi sorularını ekle; yerleşik 120 sorunun önüne sıraya girerler.'),
+      h('ol', { class: 'ask-q-list', 'data-list': 'home.askQuestions' },
+        (c.askQuestions || []).map((q, i) => h('li', { 'data-index': i }, T('span', `home.askQuestions.${i}`, 'ask-q-item'))))) : null);
+
   return chapterShell('home',
     banner,
     h('div', { class: 'hero' },
@@ -159,6 +197,7 @@ function renderHome() {
     counter,
     stats,
     daily,
+    ask,
     T('p', 'home.quote', 'quote reveal'),
     E
       ? h('section', { class: 'ed-secret ed-love-note' },
@@ -366,6 +405,25 @@ function renderQuiz() {
         h('button', { class: 'btn btn-big', type: 'button', 'data-action': 'quiz-start', disabled: total ? null : true }, T('span', 'quiz.start')))));
 }
 
+const money = (n) => `₺${Math.round(n).toLocaleString('tr-TR')}`;
+// Hayal için birikim: hedef ve biriken tutar
+function dreamFund(d, i, E) {
+  const goal = Number(d.goal) || 0;
+  const saved = Math.max(0, Number(d.saved) || 0);
+  if (E) {
+    const num = (key, ph) => h('input', {
+      class: 'ed-input ed-num', type: 'number', min: '0', step: '50', inputmode: 'numeric', placeholder: ph,
+      value: d[key] == null ? '' : String(d[key]), 'data-input': `dreams.items.${i}.${key}`,
+    });
+    return h('span', { class: 'ed-ui dream-fund-edit' }, '💰 Hedef ₺', num('goal', 'ör. 20000'), ' Biriken ₺', num('saved', '0'));
+  }
+  if (!goal || d.done) return null;
+  const pct = Math.min(100, (saved / goal) * 100);
+  return h('span', { class: 'dream-fund' },
+    h('span', { class: 'df-bar' }, h('i', { style: { width: `${pct.toFixed(1)}%` } })),
+    h('small', {}, `💰 ${money(saved)} / ${money(goal)} · %${Math.floor(pct)}`));
+}
+
 const doneLabel = (s) => {
   const d = parseLocal(s);
   return d ? d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }) : '';
@@ -393,7 +451,8 @@ function renderDreams() {
           T('span', `dreams.items.${i}.text`, 'dream-text'),
           E
             ? h('span', { class: 'dream-when-edit' }, '🎯 ', T('span', `dreams.items.${i}.when`, 'dream-when'))
-            : (!d.done && String(d.when || '').trim() ? h('span', { class: 'dream-when' }, `🎯 ${String(d.when).trim()}`) : null)),
+            : (!d.done && String(d.when || '').trim() ? h('span', { class: 'dream-when' }, `🎯 ${String(d.when).trim()}`) : null),
+          dreamFund(d, i, E)),
         d.done ? h('span', { class: 'dream-tag' }, d.doneAt ? `Gerçekleşti · ${doneLabel(d.doneAt)}` : 'Gerçekleşti') : null))),
     h('section', { class: 'suggest reveal' },
       T('h3', 'dreams.suggestTitle', 'sub-title script'),
@@ -501,7 +560,7 @@ function renderFuture() {
           h('span', {}, o.label)))),
       h('button', { class: 'btn', type: E ? 'button' : 'submit' }, T('span', 'future.letterButton'))));
 
-  return chapterShell('future', chHead('future'), upcomingBlock, capsBlock, letterBlock);
+  return chapterShell('future', chHead('future'), upcomingBlock, blockVisible('dreams') ? RENDERERS.dreams() : null, capsBlock, letterBlock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -649,7 +708,10 @@ export function renderMenu(root) {
       h('button', { class: 'menu-item', type: 'button', 'data-goto': ch.key },
         h('span', { class: 'menu-num' }, chapterNumber(ch.key)),
         h('span', { class: 'menu-t', 'data-bind': `${ch.key}.title` }, state.content[ch.key].title),
-        h('span', { class: 'menu-d', 'data-bind': `${ch.key}.desc` }, state.content[ch.key].desc))))),
+        h('span', { class: 'menu-d', 'data-bind': `${ch.key}.desc` }, state.content[ch.key].desc)),
+      ch.blocks.length > 1 ? h('span', { class: 'menu-subs' }, ch.blocks.slice(1).filter(blockVisible).map((k) => h('button', {
+        class: 'menu-sub', type: 'button', 'data-goto': k, 'data-bind': `${k}.title`,
+      }, state.content[k]?.title || ''))) : null))),
     h('div', { class: 'menu-foot' },
       h('button', { class: 'link-btn', type: 'button', 'data-go': 'intro' }, '💌 Mektubu yeniden aç'),
       state.editing || matchMedia('(display-mode: standalone)').matches || navigator.standalone
