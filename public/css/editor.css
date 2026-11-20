@@ -566,3 +566,5 @@ body.editing .fut-when, body.editing .future-form textarea { opacity: .6; pointe
 .ed-msg-body .ed-b.small { margin-top: 6px; }
 .ed-backups { display: grid; gap: 6px; }
 .ed-backup-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 1px solid #f6d3dd; font-size: .88rem; }
+.ed-flash { animation: ed-flash 1.6s ease; }
+@keyframes ed-flash { 0%, 100% { box-shadow: none; } 25%, 70% { box-shadow: 0 0 0 4px rgba(224, 36, 94, .45), 0 0 30px rgba(224, 36, 94, .35); } }

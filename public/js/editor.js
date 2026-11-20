@@ -1308,10 +1308,24 @@ function checklist() {
     { tip: true, text: 'Daha önce yüklediğin bütün fotoğraf ve şarkılar “🖼️ Yüklediklerim”de', go: () => openLibrary() },
     { tip: true, text: 'Mektubu kendi cümlelerinle kişiselleştir', go: () => app.go('letter') },
     { tip: true, text: '“Geleceğimiz”e özel günlerinizi ve Sena için bir zaman kapsülü ekle', go: () => app.go('future') },
-    { tip: true, text: 'Ana sayfaya Sena’ya küçük bir not bırak; okuyunca sana haber gelir', go: () => app.go('home') },
+    { tip: true, text: '💌 Sena’ya küçük bir not bırak; okuyunca sana haber gelir', go: () => goToNote() },
     { tip: true, text: 'Sınav sorularını ikinize göre düzenle (✓ ile doğru cevabı seç)', go: () => app.go('quiz') },
     { tip: true, text: 'İstersen siteye soru-cevaplı özel bir kilit koy', go: () => openSettings('lock') },
   ];
+}
+
+// “Sena’ya not” kutusu ana sayfanın altında; oraya kaydırıp yazmaya hazır hâle getir
+async function goToNote() {
+  if (state.current !== 'home') await app.go('home');
+  setTimeout(() => {
+    const box = $('.ed-love-note');
+    if (!box) return;
+    box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    box.classList.add('ed-flash');
+    setTimeout(() => box.classList.remove('ed-flash'), 1800);
+    const field = $('[data-edit="home.note"]', box);
+    if (field) setTimeout(() => field.focus({ preventScroll: true }), 600);
+  }, 350);
 }
 
 function openChecklist({ welcome = false } = {}) {
