@@ -9,13 +9,17 @@ import { canView, isAdmin } from '../lib/session.js';
 import { readJson, writeJson, ConflictError } from '../lib/store.js';
 import { allow, randomHex } from '../lib/security.js';
 import { notifyDeniz } from '../lib/notify.js';
+import { parseLocal } from '../public/js/takvim.js';
 
 const INBOX_PATH = 'ozel/gelen-kutusu.json';
 const KEEP = 300;
 // tür → en fazla yazı uzunluğu
-const TYPES = { not: 2000, hayal: 600, kupon: 300, mektup: 200, evet: 200, sinav: 300, kazi: 200, gizli: 200 };
+const TYPES = {
+  not: 2000, hayal: 600, kupon: 300, mektup: 200, evet: 200, sinav: 300, kazi: 200, gizli: 200,
+  dusun: 120, gelecek: 2000, kapsul: 200, okudu: 200,
+};
 // Bu türler "bildirimler kapalı" olsa da gelir (Sena bilerek yazdı)
-const ALWAYS = new Set(['not', 'hayal']);
+const ALWAYS = new Set(['not', 'hayal', 'dusun', 'gelecek']);
 // Tarayıcının her olaya verdiği kimlik: bağlantı kopup yeniden gönderilirse çift kayıt olmasın
 const CID_RE = /^[A-Za-z0-9_-]{6,40}$/;
 
@@ -68,7 +72,16 @@ const handlers = route({
 
     const text = str(body.text, TYPES[type]);
     const title = str(body.title, 160);
-    if ((type === 'not' || type === 'hayal') && !text) return json({ error: 'Boş gönderilemez.' }, 400);
+    if ((type === 'not' || type === 'hayal' || type === 'gelecek') && !text) return json({ error: 'Boş gönderilemez.' }, 400);
+    // Geleceğe mektup: açılma günü bugünden sonra ve en fazla 30 yıl ileride olmalı
+    let openAt = null;
+    if (type === 'gelecek') {
+      const at = parseLocal(typeof body.openAt === 'string' ? body.openAt : '');
+      if (!at || at.getTime() < Date.now() || at.getTime() > Date.now() + 30 * 365 * 86_400_000) {
+        return json({ error: 'Açılma günü geçersiz.' }, 400);
+      }
+      openAt = String(body.openAt).slice(0, 16);
+    }
     const cid = typeof body.cid === 'string' && CID_RE.test(body.cid) ? body.cid : null;
 
     const entry = {
@@ -79,6 +92,7 @@ const handlers = route({
       at: new Date().toISOString(),
       device: deviceOf(request.headers.get('user-agent') || ''),
       ...(cid ? { cid } : {}),
+      ...(openAt ? { openAt } : {}),
       // Deniz kendi denerken gelen kayıtlar ayrı işaretlenir
       ...(await isAdmin(request) ? { test: true } : {}),
     };
@@ -106,7 +120,12 @@ const handlers = route({
     if (!(await isAdmin(request))) return json({ error: 'Önce giriş yapmalısın.' }, 401);
     const doc = await readJson(INBOX_PATH);
     const value = doc ? doc.value : { items: [], readAt: null };
-    const items = Array.isArray(value.items) ? value.items : [];
+    // Geleceğe yazılan mektuplar günü gelene kadar Deniz'e de mühürlü görünür
+    const now = Date.now();
+    const items = (Array.isArray(value.items) ? value.items : []).map((it) => {
+      const at = it && it.openAt ? parseLocal(it.openAt) : null;
+      return at && at.getTime() > now ? { ...it, text: '', sealed: true } : it;
+    });
     const readAt = value.readAt ? Date.parse(value.readAt) : 0;
     const unread = items.filter((it) => Date.parse(it.at) > readAt).length;
     return json({ items, readAt: value.readAt || null, unread });

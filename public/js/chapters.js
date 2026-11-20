@@ -4,7 +4,8 @@ import {
   visibleChapters, chapterNumber, paragraphs, HEART_PATH, store,
 } from './core.js';
 import { splitLetters, splitWords } from './effects.js';
-import { counterParts, statsList, specialDays, dailyNote, couponUsed, openedLetter, quizQuestions } from './features.js';
+import { counterParts, statsList, specialDays, dailyNote, couponUsed, openedLetter, quizQuestions, openedCapsule, futureWhenOptions } from './features.js';
+import { upcoming, parseLocal, formatDate, remaining, genitive } from './takvim.js';
 
 const POLAROID_TILT = [-3.5, 2.5, -1.5, 4, -2.5, 1.5, -4, 3];
 
@@ -159,6 +160,16 @@ function renderHome() {
     stats,
     daily,
     T('p', 'home.quote', 'quote reveal'),
+    E
+      ? h('section', { class: 'ed-secret ed-love-note' },
+        h('p', { class: 'ed-secret-head' }, '💌 Sena’ya not — siteyi açınca bir kez karşısına çıkar, okuyunca sana haber gelir (boş bırakırsan çıkmaz)'),
+        T('p', 'home.noteTitle', 'ln-title script'),
+        T('p', 'home.note', 'ed-secret-note ed-multiline', { 'data-multiline': '' }))
+      : (String(c.note || '').trim() ? h('section', { class: 'love-note reveal', 'data-love-note': '' },
+        h('span', { class: 'ln-seal', 'aria-hidden': 'true' }, '💌'),
+        h('p', { class: 'ln-from' }, `${genitive(state.content.names?.me || 'Deniz')} notu`),
+        T('p', 'home.noteTitle', 'ln-title script'),
+        h('p', { class: 'ln-text' }, String(c.note).trim())) : null),
     E
       ? h('section', { class: 'ed-secret' },
         h('p', { class: 'ed-secret-head' }, '🤫 Gizli not — Sena isimlere üç kez dokununca açılır (boş bırakırsan kapanır)'),
@@ -355,6 +366,11 @@ function renderQuiz() {
         h('button', { class: 'btn btn-big', type: 'button', 'data-action': 'quiz-start', disabled: total ? null : true }, T('span', 'quiz.start')))));
 }
 
+const doneLabel = (s) => {
+  const d = parseLocal(s);
+  return d ? d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }) : '';
+};
+
 /* ------------------------------------------------------------------ */
 /* VII. Hayallerimiz                                                   */
 /* ------------------------------------------------------------------ */
@@ -373,8 +389,12 @@ function renderDreams() {
         E
           ? h('button', { class: 'dream-check', type: 'button', 'data-dream-toggle': i, 'aria-pressed': d.done ? 'true' : 'false', title: 'Gerçekleşti mi?' }, checkSvg())
           : h('span', { class: 'dream-check', 'aria-hidden': 'true' }, checkSvg()),
-        T('span', `dreams.items.${i}.text`, 'dream-text'),
-        d.done ? h('span', { class: 'dream-tag' }, 'Gerçekleşti') : null))),
+        h('span', { class: 'dream-main' },
+          T('span', `dreams.items.${i}.text`, 'dream-text'),
+          E
+            ? h('span', { class: 'dream-when-edit' }, '🎯 ', T('span', `dreams.items.${i}.when`, 'dream-when'))
+            : (!d.done && String(d.when || '').trim() ? h('span', { class: 'dream-when' }, `🎯 ${String(d.when).trim()}`) : null)),
+        d.done ? h('span', { class: 'dream-tag' }, d.doneAt ? `Gerçekleşti · ${doneLabel(d.doneAt)}` : 'Gerçekleşti') : null))),
     h('section', { class: 'suggest reveal' },
       T('h3', 'dreams.suggestTitle', 'sub-title script'),
       E ? h('p', { class: 'ed-note-inline' }, 'Sena buradan yeni bir hayal yazınca Gelen Kutusu’na düşer.') : null,
@@ -384,6 +404,104 @@ function renderDreams() {
           placeholder: c.suggestPlaceholder || '', 'aria-label': c.suggestTitle || 'Hayalin',
         }),
         h('button', { class: 'btn', type: E ? 'button' : 'submit' }, T('span', 'dreams.suggestButton')))));
+}
+
+/* ------------------------------------------------------------------ */
+/* Geleceğimiz: yaklaşan günler, zaman kapsülleri, geleceğe mektup      */
+/* ------------------------------------------------------------------ */
+const dateInput = (path, value, type = 'date') => h('input', {
+  class: 'ed-input ed-date', type, 'data-input': path,
+  value: type === 'date' ? String(value || '').slice(0, 10) : String(value || '').slice(0, 16),
+});
+
+function dayCard(it, n) {
+  return h('li', { class: `day-card reveal k-${it.kind}${it.days === 0 ? ' today' : ''}`, style: { '--d': `${(n % 4) * 0.06}s` } },
+    h('span', { class: 'day-ic', 'aria-hidden': 'true' }, it.icon),
+    h('span', { class: 'day-body' },
+      h('span', { class: 'day-title' }, it.title),
+      h('span', { class: 'day-date' }, formatDate(it.time || it.date, { weekday: true }))),
+    h('span', { class: 'day-count' }, it.days === 0
+      ? h('b', {}, 'Bugün!')
+      : [h('b', {}, String(it.days)), h('small', {}, it.days === 1 ? 'gün · yarın' : 'gün')]),
+    h('button', { class: 'day-cal', type: 'button', 'data-ics': it.key, title: 'Telefonumun takvimine ekle', 'aria-label': `${it.title}: takvime ekle` }, '📅'));
+}
+
+function renderFuture() {
+  const c = state.content.future;
+  const E = state.editing;
+  const now = new Date();
+  const days = upcoming(state.content, now);
+  state.upcoming = days;
+  const next = days[0];
+
+  const hero = next && !E ? h('div', { class: 'next-day reveal', 'data-next-day': next.key },
+    h('p', { class: 'nd-kicker' }, 'Sıradaki özel günümüz'),
+    h('p', { class: 'nd-title script' }, `${next.icon} ${next.title}`),
+    h('p', { class: 'nd-date' }, formatDate(next.time || next.date, { weekday: true })),
+    next.days === 0 && !next.time
+      ? h('p', { class: 'nd-today script' }, 'Bugün! 🎉')
+      : h('div', { class: 'nd-count', 'data-countdown': String((next.time || next.date).getTime()) },
+        [['d', 'gün'], ['h', 'saat'], ['m', 'dakika'], ['s', 'saniye']].map(([k, l]) => h('span', { class: 'nd-box' }, h('b', { 'data-u': k }, '0'), h('small', {}, l)))),
+    h('button', { class: 'link-btn nd-cal', type: 'button', 'data-ics': next.key }, '📅 Takvimime ekle')) : null;
+
+  const upcomingBlock = h('section', { class: 'fut-block' },
+    T('h3', 'future.upcomingTitle', 'sub-title script reveal'),
+    T('p', 'future.upcomingIntro', 'sub-intro reveal'),
+    hero,
+    E
+      ? h('div', { class: 'ev-edit-wrap' },
+        h('p', { class: 'ed-note-inline' }, 'Yıl dönümleri, ay dönümleri, doğum günleri ve Sevgililer Günü kendiliğinden eklenir. Buraya kendi günlerinizi ekle: tatil, konser, taşınma…'),
+        h('div', { class: 'ev-edit-list', 'data-list': 'future.events' },
+          (c.events || []).map((ev, i) => h('div', { class: 'ev-edit', 'data-index': i },
+            T('span', `future.events.${i}.icon`, 'ev-ic'),
+            T('span', `future.events.${i}.title`, 'ev-title'),
+            h('span', { class: 'ed-ui ev-fields' },
+              dateInput(`future.events.${i}.date`, ev.date),
+              h('label', { class: 'ev-yearly' }, h('input', { type: 'checkbox', checked: ev.yearly ? true : null, 'data-check': `future.events.${i}.yearly` }), ' her yıl'))))))
+      : h('ol', { class: 'days' }, days.slice(next ? 1 : 0, 9).map((it, n) => dayCard(it, n))));
+
+  const caps = c.capsules || [];
+  const capsBlock = E || caps.some((cp) => cp && cp.openAt) ? h('section', { class: 'fut-block caps-block' },
+    T('h3', 'future.capsulesTitle', 'sub-title script reveal'),
+    T('p', 'future.capsulesIntro', 'sub-intro reveal'),
+    E
+      ? h('div', { class: 'cap-edit-list', 'data-list': 'future.capsules' },
+        caps.map((cp, i) => h('article', { class: 'cap-edit', 'data-index': i },
+          h('div', { class: 'ow-edit-head' }, T('span', `future.capsules.${i}.icon`, 'ow-icon'), T('h4', `future.capsules.${i}.title`, 'ow-label')),
+          h('label', { class: 'ed-ui cap-date' }, 'Açılma zamanı: ', dateInput(`future.capsules.${i}.openAt`, cp.openAt, 'datetime-local')),
+          T('p', `future.capsules.${i}.text`, 'ow-text ed-multiline', { 'data-multiline': '' }))))
+      : h('div', { class: 'caps' }, caps.map((cp, i) => {
+        if (!cp || !cp.openAt) return null;
+        const at = parseLocal(cp.openAt);
+        const open = !at || at <= now;
+        const opened = openedCapsule(i);
+        return h('button', {
+          class: `capsule reveal${open ? ' ready' : ' locked'}${opened ? ' opened' : ''}`,
+          type: 'button', 'data-capsule': i, style: { '--d': `${(i % 3) * 0.08}s` },
+        },
+        h('span', { class: 'cap-orb', 'aria-hidden': 'true' },
+          h('span', { class: 'cap-ic' }, cp.icon || '💌'),
+          open ? null : h('span', { class: 'cap-lock' }, '🔒')),
+        h('span', { class: 'cap-title' }, cp.title || 'Zaman kapsülü'),
+        h('span', { class: 'cap-when' }, open
+          ? (opened ? 'Açıldı ♥' : 'Açılmaya hazır ✨')
+          : `${formatDate(at)} · ${remaining(at, now)} kaldı`));
+      }))) : null;
+
+  const letterBlock = h('section', { class: 'fut-block fut-letter reveal' },
+    T('h3', 'future.letterTitle', 'sub-title script'),
+    T('p', 'future.letterIntro', 'sub-intro'),
+    E ? h('p', { class: 'ed-note-inline' }, 'Sena’nın yazdığı mektup Gelen Kutusu’na mühürlü düşer; seçtiği gün gelene kadar sen de okuyamazsın.') : null,
+    h('form', { class: 'suggest-form future-form', 'data-form': 'future' },
+      h('textarea', { class: 'field', name: 'text', rows: '4', maxlength: '2000', required: true, placeholder: c.letterPlaceholder || '', 'aria-label': c.letterTitle || 'Mektubun' }),
+      h('fieldset', { class: 'fut-when' },
+        h('legend', {}, 'Ne zaman açılsın?'),
+        futureWhenOptions().map((o, k) => h('label', { class: 'when-chip' },
+          h('input', { type: 'radio', name: 'when', value: o.value, checked: k === 0 ? true : null }),
+          h('span', {}, o.label)))),
+      h('button', { class: 'btn', type: E ? 'button' : 'submit' }, T('span', 'future.letterButton'))));
+
+  return chapterShell('future', chHead('future'), upcomingBlock, capsBlock, letterBlock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -461,6 +579,7 @@ export const RENDERERS = {
   reasons: renderReasons,
   quiz: renderQuiz,
   dreams: renderDreams,
+  future: renderFuture,
   surprise: renderSurprise,
   finale: renderFinale,
 };
@@ -532,6 +651,8 @@ export function renderMenu(root) {
         h('span', { class: 'menu-t', 'data-bind': `${ch.key}.title` }, state.content[ch.key].title),
         h('span', { class: 'menu-d', 'data-bind': `${ch.key}.desc` }, state.content[ch.key].desc))))),
     h('div', { class: 'menu-foot' },
-      h('button', { class: 'link-btn', type: 'button', 'data-go': 'intro' }, '💌 Mektubu yeniden aç')));
+      h('button', { class: 'link-btn', type: 'button', 'data-go': 'intro' }, '💌 Mektubu yeniden aç'),
+      state.editing || matchMedia('(display-mode: standalone)').matches || navigator.standalone
+        ? null : h('button', { class: 'link-btn', type: 'button', 'data-action': 'install' }, '📲 Ana ekrana ekle')));
   return root;
 }

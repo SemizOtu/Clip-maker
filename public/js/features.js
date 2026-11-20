@@ -5,6 +5,7 @@ import {
   sameDay, dayIndex, fmtNum, store, toast, dialog, heartSvg, mediaUrl, paragraphs, HEART_PATH, svg,
 } from './core.js';
 import { splitWords } from './effects.js';
+import { upcoming, parseLocal, formatDate, remaining, genitive, addMonths as addMonthsLocal, icsFor } from './takvim.js';
 
 const fx = () => state.fx;
 
@@ -108,6 +109,10 @@ export function specialDays(now = new Date()) {
   }
   const bd = birthdayOf(now);
   if (bd && sameDay(bd, now)) out.push({ key: 'dogum', icon: '🎂', text: `İyi ki doğdun ${you}!` });
+  for (const it of upcoming(c, now, { horizon: 0 })) {
+    if (it.kind === 'etkinlik') out.push({ key: it.key, icon: it.icon, text: `Bugün: ${it.title}` });
+    if (it.key === 'dogum-ben') out.push({ key: it.key, icon: '🎁', text: `Bugün ${genitive(c.names?.me || 'Deniz')} doğum günü!` });
+  }
   if (now.getMonth() === 1 && now.getDate() === 14) out.push({ key: 'sevgililer', icon: '💘', text: 'Sevgililer Günümüz kutlu olsun!' });
   if (now.getMonth() === 0 && now.getDate() === 1) out.push({ key: 'yilbasi', icon: '🎆', text: 'Mutlu yıllar sevgilim!' });
   return out;
@@ -198,7 +203,7 @@ async function postEvent(ev) {
     const res = await fetch('/api/inbox', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: ev.type, title: ev.title, text: ev.text, cid: ev.cid }),
+      body: JSON.stringify({ type: ev.type, title: ev.title, text: ev.text, cid: ev.cid, openAt: ev.openAt || undefined }),
       keepalive: true,
     });
     // 400/413: istek hatalı, tekrar denemenin anlamı yok; diğerleri (kilit, yoğunluk, sunucu) sonra denenir
@@ -234,10 +239,10 @@ export async function flushOutbox() {
   if (readOutbox().length) scheduleFlush();
 }
 
-export async function sendEvent(type, { title = '', text = '' } = {}, { once = null } = {}) {
+export async function sendEvent(type, { title = '', text = '', openAt = '' } = {}, { once = null } = {}) {
   if (state.editing || state.previewing) return { skipped: true };
   if (once && store.get(`ds:olay:${once}`)) return { skipped: true };
-  const ev = { type, title, text, cid: newCid(), t: Date.now() };
+  const ev = { type, title, text, cid: newCid(), t: Date.now(), ...(openAt ? { openAt } : {}) };
   const res = await postEvent(ev);
   if (!res.ok && res.retry) {
     writeOutbox([...readOutbox(), ev]);
@@ -491,6 +496,47 @@ export const openedLetter = (i) => {
   return it ? Boolean(store.get(letterKey(it))) : false;
 };
 
+// Kelime kelime beliren mektup penceresi. Kapanınca onClose çağrılır.
+export function letterModal({ icon = '💌', title = '', text = '', sign = null, cls = '', actions = null, onClose = null }) {
+  const body = h('div', { class: 'ow-letter-body' });
+  let n = 0;
+  paragraphs(text).forEach((p) => {
+    const el = h('p');
+    n = splitWords(el, p, n);
+    body.append(el);
+  });
+  const prevFocus = document.activeElement;
+  const back = h('div', { class: `ow-modal-back no-burst ${cls}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    back.classList.add('closing');
+    document.removeEventListener('keydown', onKey, true);
+    setTimeout(() => back.remove(), 380);
+    if (prevFocus && prevFocus.focus) prevFocus.focus({ preventScroll: true });
+    if (onClose) onClose();
+  };
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  back.append(h('article', { class: 'ow-modal' },
+    h('button', { class: 'ow-close', type: 'button', 'aria-label': 'Kapat', onclick: close }, '✕'),
+    h('span', { class: 'ow-modal-icon', 'aria-hidden': 'true' }, icon || '💌'),
+    h('h3', { class: 'ow-modal-title script' }, title || ''),
+    body,
+    h('p', { class: 'ow-modal-sign script' }, `— ${sign ?? (state.content.names?.me || '')}`),
+    actions ? h('div', { class: 'ow-modal-actions' }, actions(close)) : null));
+  back.addEventListener('click', (e) => { if (e.target === back) close(); });
+  document.addEventListener('keydown', onKey, true);
+  document.body.append(back);
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+    requestAnimationFrame(() => body.classList.add('is-in'));
+    $$('.words', body).forEach((w) => w.classList.add('is-in'));
+  });
+  $('.ow-close', back).focus({ preventScroll: true });
+  return close;
+}
+
 export function openWhenLetter(i, btn) {
   const it = state.content.letter.openWhen[i];
   if (!it) return;
@@ -501,37 +547,7 @@ export function openWhenLetter(i, btn) {
     const s = $('.ow-state', btn);
     if (s) s.textContent = 'Açıldı ♥';
   }
-  const body = h('div', { class: 'ow-letter-body' });
-  let n = 0;
-  paragraphs(it.text).forEach((p) => {
-    const el = h('p');
-    n = splitWords(el, p, n);
-    body.append(el);
-  });
-  const prevFocus = document.activeElement;
-  const back = h('div', { class: 'ow-modal-back no-burst', role: 'dialog', 'aria-modal': 'true', 'aria-label': it.label });
-  const close = () => {
-    back.classList.add('closing');
-    document.removeEventListener('keydown', onKey, true);
-    setTimeout(() => back.remove(), 380);
-    if (prevFocus && prevFocus.focus) prevFocus.focus({ preventScroll: true });
-  };
-  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
-  back.append(h('article', { class: 'ow-modal' },
-    h('button', { class: 'ow-close', type: 'button', 'aria-label': 'Kapat', onclick: close }, '✕'),
-    h('span', { class: 'ow-modal-icon', 'aria-hidden': 'true' }, it.icon || '💌'),
-    h('h3', { class: 'ow-modal-title script' }, it.label || ''),
-    body,
-    h('p', { class: 'ow-modal-sign script' }, `— ${state.content.names?.me || ''}`)));
-  back.addEventListener('click', (e) => { if (e.target === back) close(); });
-  document.addEventListener('keydown', onKey, true);
-  document.body.append(back);
-  requestAnimationFrame(() => {
-    back.classList.add('open');
-    requestAnimationFrame(() => body.classList.add('is-in'));
-    $$('.words', body).forEach((w) => w.classList.add('is-in'));
-  });
-  $('.ow-close', back).focus({ preventScroll: true });
+  letterModal({ icon: it.icon, title: it.label, text: it.text });
   const r = btn ? btn.getBoundingClientRect() : null;
   if (r) fx().burst(r.left + r.width / 2, r.top + r.height / 3, 12, { power: 0.9 });
   if (first) sendEvent('mektup', { title: `“${it.label}” mektubunu açtı` }, { once: `mektup:${it.label}` });
@@ -580,7 +596,9 @@ export async function submitForm(form) {
   const text = field ? field.value.trim() : '';
   if (!text) { field?.focus(); return; }
   btn.disabled = true;
-  const res = await sendEvent(kind === 'dream' ? 'hayal' : 'not', { text });
+  const when = kind === 'future' ? futureOpenAt(form.elements.when?.value) : null;
+  const type = { dream: 'hayal', note: 'not', future: 'gelecek' }[kind] || 'not';
+  const res = await sendEvent(type, { text, openAt: when ? when.at : '' });
   btn.disabled = false;
   if (!res.ok && !res.skipped && !res.queued) {
     toast(res.status === 413 ? 'Biraz uzun oldu; kısaltıp tekrar dener misin?' : 'Gönderilemedi; bir daha dener misin?', { error: true, ms: 5000 });
@@ -588,7 +606,8 @@ export async function submitForm(form) {
   }
   const r = btn.getBoundingClientRect();
   fx().burst(r.left + r.width / 2, r.top + r.height / 2, 20, { power: 1.2 });
-  const thanks = kind === 'dream' ? state.content.dreams.suggestThanks : state.content.finale.replyThanks;
+  const thanks = kind === 'dream' ? state.content.dreams.suggestThanks
+    : kind === 'future' ? state.content.future.letterThanks : state.content.finale.replyThanks;
   if (res.queued) {
     toast('İnternette bir aksaklık var ama merak etme: yazdığın bu cihazda saklandı, bağlantı gelince kendiliğinden gönderilecek 💌', { ms: 7000 });
   }
@@ -596,6 +615,12 @@ export async function submitForm(form) {
     field.value = '';
     shootingStar({ front: true });
     if (!res.queued) toast(res.skipped ? 'Önizleme: gerçekte bu hayal sana gelirdi 💭' : thanks, { ms: 4500 });
+  } else if (kind === 'future') {
+    form.replaceWith(h('div', { class: 'future-sent' },
+      h('span', { class: 'fs-seal', 'aria-hidden': 'true' }, '📮'),
+      h('p', { class: 'reply-thanks script' }, res.skipped ? 'Önizleme: gerçekte bu mektup mühürlenip giderdi 📮' : thanks),
+      h('p', { class: 'fs-date' }, `Açılış günü: ${formatDate(when.date, { weekday: true })}`)));
+    fx().sparkle(r.left + r.width / 2, r.top + r.height / 2, 24, { power: 1.1 });
   } else {
     form.replaceWith(h('p', { class: 'reply-thanks script' }, res.skipped ? 'Önizleme: gerçekte bu not sana gelirdi 💌' : thanks));
   }
@@ -945,3 +970,196 @@ export async function openSecret(from) {
   sendEvent('gizli', { title: 'Gizli notu buldu 🤫' }, { once: 'gizli' });
   await dialog({ icon: '🤫', title: 'Gizli not', text: note, yes: 'Seni seviyorum ❤' });
 }
+
+/* ------------------------------------------------------------------ */
+/* Geleceğimiz: kapsüller, geri sayım, takvim, geleceğe mektup          */
+/* ------------------------------------------------------------------ */
+const capsuleKey = (cp) => `ds:kapsul:${cp.title}|${cp.openAt}`;
+export const openedCapsule = (i) => {
+  const cp = state.content?.future?.capsules?.[i];
+  return cp ? Boolean(store.get(capsuleKey(cp))) : false;
+};
+
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Geleceğe mektup: ne zaman açılsın?
+export function futureWhenOptions(now = new Date()) {
+  const opts = [
+    { value: 'm1', label: '1 ay sonra', date: addMonthsLocal(now, 1) },
+    { value: 'm6', label: '6 ay sonra', date: addMonthsLocal(now, 6) },
+    { value: 'y1', label: '1 yıl sonra', date: addMonthsLocal(now, 12) },
+  ];
+  const ann = state.content ? upcoming(state.content, now).find((it) => it.kind === 'yil' && it.days > 0) : null;
+  if (ann) opts.push({ value: 'yd', label: ann.title.replace(/dönümümüz$/, 'dönümümüzde'), date: ann.date });
+  opts.push({ value: 'y5', label: '5 yıl sonra', date: addMonthsLocal(now, 60) });
+  return opts;
+}
+
+export async function openCapsule(i, btn) {
+  let cp = state.content.future?.capsules?.[i];
+  if (!cp) return;
+  const at = parseLocal(cp.openAt);
+  if (at && at > new Date()) {
+    if (btn) {
+      btn.classList.remove('shake');
+      void btn.offsetWidth;
+      btn.classList.add('shake');
+    }
+    toast(`🔒 Bu kapsül ${formatDate(at)} günü açılacak. ${remaining(at)} kaldı; biraz daha sabır ⏳`, { ms: 4500 });
+    return;
+  }
+  if (cp.sealed) {
+    // Telefonun saati sunucudan biraz ileride olabilir: güncel hâlini iste
+    try {
+      const res = await fetch('/api/content', { cache: 'no-store', credentials: 'same-origin' });
+      const fresh = (await res.json())?.content?.future?.capsules?.[i];
+      if (fresh && !fresh.sealed) {
+        state.content.future.capsules[i] = fresh;
+        cp = fresh;
+      }
+    } catch { /* yok say */ }
+    if (cp.sealed) {
+      toast('Neredeyse… birkaç dakika sonra tekrar dene ⏳');
+      return;
+    }
+  }
+  const first = !store.get(capsuleKey(cp));
+  store.set(capsuleKey(cp), new Date().toISOString());
+  if (btn) {
+    btn.classList.add('opened');
+    const w = $('.cap-when', btn);
+    if (w) w.textContent = 'Açıldı ♥';
+    const r = btn.getBoundingClientRect();
+    fx().sparkle(r.left + r.width / 2, r.top + r.height / 3, 30, { power: 1.3 });
+  }
+  if (first) fx().confetti({ count: 90 });
+  letterModal({ icon: cp.icon || '⏳', title: cp.title || 'Zaman kapsülü', text: cp.text || '', cls: 'capsule-modal' });
+  if (first) sendEvent('kapsul', { title: `“${cp.title || 'Zaman kapsülü'}” kapsülünü açtı` }, { once: `kapsul:${cp.title}|${cp.openAt}` });
+}
+
+// Sıradaki özel güne canlı geri sayım
+export function startFuture(sec) {
+  const box = $('[data-countdown]', sec);
+  if (!box) return () => {};
+  const target = Number(box.dataset.countdown);
+  const el = Object.fromEntries(['d', 'h', 'm', 's'].map((k) => [k, $(`[data-u="${k}"]`, box)]));
+  const tick = () => {
+    let ms = Math.max(0, target - Date.now());
+    const d = Math.floor(ms / 86_400_000);
+    ms -= d * 86_400_000;
+    const hh = Math.floor(ms / 3_600_000);
+    ms -= hh * 3_600_000;
+    const mm = Math.floor(ms / 60_000);
+    const ss = Math.floor((ms - mm * 60_000) / 1000);
+    const vals = { d, h: hh, m: mm, s: ss };
+    for (const [k, v] of Object.entries(vals)) {
+      const str = k === 'd' ? String(v) : String(v).padStart(2, '0');
+      if (el[k] && el[k].textContent !== str) el[k].textContent = str;
+    }
+  };
+  tick();
+  const t = setInterval(tick, 1000);
+  return () => clearInterval(t);
+}
+
+// Yaklaşan günü telefonun takvimine eklemek için .ics dosyası
+export function downloadIcs(key) {
+  const it = (state.upcoming || []).find((x) => x.key === key);
+  if (!it) return;
+  const ev = it.kind === 'etkinlik' ? state.content.future?.events?.[it.index] : null;
+  const yearly = it.kind === 'dogum' || it.kind === 'genel' || Boolean(ev && ev.yearly);
+  const names = state.content.names || {};
+  const text = icsFor({ title: `${it.icon} ${it.title}`, date: it.date, time: it.time || null, yearly, description: `${names.me || ''} & ${names.you || ''} 💞` });
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
+  const a = h('a', { href: url, download: `${it.key}.ics`, hidden: true });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast('📅 Takvim dosyası indi; açınca telefonunun takvimine eklenir (bir gün önceden hatırlatır).', { ms: 5200 });
+}
+
+/* ------------------------------------------------------------------ */
+/* “Seni düşündüm” ve Deniz'in notu                                     */
+/* ------------------------------------------------------------------ */
+// Ana ekrana ekle: Android'de tarayıcının kendi penceresi, iPhone'da kısa tarif
+let installPrompt = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
+
+export async function installApp() {
+  if (installPrompt) {
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice.catch(() => null);
+    installPrompt = null;
+    if (choice && choice.outcome === 'accepted') toast('📲 Artık ana ekranında! Bir dokunuşla açılır 💗', { ms: 4200 });
+    return;
+  }
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  await dialog({
+    icon: '📲',
+    title: 'Ana ekrana ekle',
+    text: ios
+      ? 'Safari’de alttaki Paylaş düğmesine (kare ve yukarı ok) dokun, listeden “Ana Ekrana Ekle”yi seç. Sitemiz telefonunda bir uygulama gibi kendi simgesiyle durur 💗'
+      : 'Tarayıcının sağ üstteki ⋮ menüsünü aç ve “Ana ekrana ekle” ya da “Uygulamayı yükle”yi seç. Sitemiz telefonunda bir uygulama gibi kendi simgesiyle durur 💗',
+    yes: 'Tamam',
+  });
+}
+
+const THINK_KEY = 'ds:dusundum';
+const THINK_GAP = 10 * 60_000;
+
+export async function thinkOfYou(btn) {
+  const r = btn.getBoundingClientRect();
+  fx().burst(r.left + r.width / 2, r.top + r.height / 2, 16, { power: 1 });
+  fx().sparkle(r.left + r.width / 2, r.top + r.height / 2, 12, { power: 0.8 });
+  if (Date.now() - Number(store.get(THINK_KEY) || 0) < THINK_GAP) {
+    toast('💗 Az önce de gönderdin; kalbin ona ulaştı bile.', { ms: 3200 });
+    return;
+  }
+  btn.classList.add('sent');
+  setTimeout(() => btn.classList.remove('sent'), 2600);
+  const res = await sendEvent('dusun', { title: 'Şu an seni düşünüyor 💭' });
+  if (res.ok || res.queued) store.set(THINK_KEY, String(Date.now()));
+  if (res.skipped) toast('Önizleme: gerçekte “seni düşünüyorum” haberi giderdi 💭', { ms: 3600 });
+  else if (res.ok || res.queued) toast('💭 Düşüncen yola çıktı; şu an onu düşündüğünü bilecek 💗', { ms: 3600 });
+  else toast('Gönderilemedi; bir daha dener misin?', { error: true });
+}
+
+const hashText = (s) => {
+  let x = 7;
+  for (const ch of String(s)) x = (Math.imul(x, 31) + ch.codePointAt(0)) >>> 0;
+  return x.toString(36);
+};
+let noteShown = false;
+
+// Deniz'in bıraktığı not: her yeni not bir kez açılır, okununca Deniz'e haber gider
+export function showLoveNote() {
+  const c = state.content?.home;
+  const note = String(c?.note || '').trim();
+  if (noteShown || !note || state.editing || state.previewing) return;
+  const id = hashText(note);
+  const key = `ds:not:${id}`;
+  if (store.get(key)) return;
+  noteShown = true;
+  setTimeout(() => {
+    letterModal({
+      icon: '💌',
+      title: c.noteTitle || 'Sana küçük bir notum var',
+      text: note,
+      cls: 'love-note-modal',
+      actions: (close) => [h('button', { class: 'btn', type: 'button', onclick: close }, heartSvg(), 'Ben de seni seviyorum')],
+      onClose: () => {
+        store.set(key, new Date().toISOString());
+        sendEvent('okudu', { title: 'Bıraktığın notu okudu 💌', text: note.slice(0, 160) }, { once: `okudu:${id}` });
+      },
+    });
+  }, reducedMotion ? 300 : 1300);
+}
+
+// Sena'nın yazdığı “geleceğe mektup” için açılma zamanı
+export function futureOpenAt(value) {
+  const opts = futureWhenOptions();
+  const opt = opts.find((o) => o.value === value) || opts[0];
+  return { at: `${ymd(opt.date)}T09:00`, date: opt.date };
+}
+

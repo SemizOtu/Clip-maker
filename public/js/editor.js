@@ -3,6 +3,14 @@
 import {
   $, $$, h, state, toast, dialog, relTime, getPath, setPath, CHAPTERS, chapterNumber, store, waxSeal, sleep,
 } from './core.js';
+import { parseLocal, formatDate, remaining } from './takvim.js';
+
+const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const inAYear = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return `${ymdLocal(d)}T20:00`;
+};
 
 let app;
 const S = {
@@ -40,6 +48,8 @@ const LISTS = {
   'quiz.questions': { add: '+ Yeni soru ekle', make: () => ({ q: 'Yeni soru?', options: ['Cevap 1', 'Cevap 2', 'Cevap 3', 'Cevap 4'], answer: 0, note: '' }) },
   'dreams.items': { add: '+ Yeni hayal ekle', make: () => ({ text: 'Yeni bir hayal…', done: false }) },
   'surprise.coupons': { add: '+ Yeni kupon ekle', make: () => ({ icon: '💝', title: 'Yeni Kupon', text: 'Kuponun açıklaması…' }) },
+  'future.events': { add: '+ Özel bir gün ekle', make: () => ({ icon: '📌', title: 'Yeni bir gün', date: ymdLocal(new Date(Date.now() + 30 * 86_400_000)), yearly: false }) },
+  'future.capsules': { add: '+ Zaman kapsülü ekle', make: () => ({ icon: '💌', title: 'Bir yıl sonra aç', openAt: inAYear(), text: 'Bu satırları okuduğunda bir yıl geçmiş olacak…' }) },
 };
 
 /* ------------------------------------------------------------------ */
@@ -836,6 +846,8 @@ function onPageClick(e) {
     const item = getPath(app.content, `dreams.items.${i}`);
     if (!item) return;
     item.done = !item.done;
+    if (item.done) item.doneAt = ymdLocal(new Date());
+    else delete item.doneAt;
     app.rerender();
     markDirty();
     if (item.done) {
@@ -1046,12 +1058,68 @@ function phoneNotifySettings(c) {
     ntfy);
 }
 
+/* ------------------------------------------------------------------ */
+/* Yedekler                                                            */
+/* ------------------------------------------------------------------ */
+function backupSection() {
+  const listEl = h('div', { class: 'ed-backups' });
+  const restore = async (b) => {
+    const day = formatDate(new Date(b.at), { weekday: true });
+    const ok = await dialog({
+      icon: '🕰️',
+      title: `${day} yedeğine dön`,
+      text: 'Bütün yazılar ve ayarlar o günkü hâline döner. Şu anki hâl de yarın sabahki yedekte saklanır; fotoğraflar silinmez. Emin misin?',
+      yes: 'Evet, o güne dön',
+      no: 'Vazgeç',
+    });
+    if (ok !== true) return;
+    try {
+      const data = await api(`/api/yedek?p=${encodeURIComponent(b.p)}`);
+      app.setContent(data.content);
+      app.rerender();
+      markDirty();
+      await save({ quiet: true });
+      toast(`${day} hâline dönüldü ✓`);
+    } catch (e) {
+      toast(`Geri yüklenemedi: ${explain(e)}`, { error: true, ms: 6000 });
+    }
+  };
+  const load = async (btn) => {
+    btn.disabled = true;
+    listEl.textContent = 'Yükleniyor…';
+    try {
+      const { items } = await api('/api/yedek?liste=1');
+      listEl.textContent = '';
+      if (!items.length) listEl.append(h('p', { class: 'ed-note' }, 'Henüz otomatik yedek yok; ilki yarın sabah alınacak.'));
+      for (const b of items.slice(0, 30)) {
+        listEl.append(h('div', { class: 'ed-backup-row' },
+          h('span', {}, `🗓️ ${formatDate(new Date(b.at), { weekday: true })}`),
+          h('button', { type: 'button', class: 'ed-b small', onclick: () => restore(b) }, 'Bu güne dön')));
+      }
+    } catch (e) {
+      listEl.textContent = '';
+      listEl.append(h('p', { class: 'ed-warn' }, explain(e)));
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  return h('section', { class: 'ed-section' },
+    h('h4', {}, '🗂️ Yedekler'),
+    h('p', { class: 'ed-note' }, 'Bütün yazıların, ayarların ve gelen kutusu her sabah kendiliğinden yedeklenir. İstersen şimdi bir kopyasını da kendi cihazına indirebilirsin.'),
+    h('div', { class: 'ed-row' },
+      h('a', { class: 'ed-b primary', href: '/api/yedek?indir=1', download: '' }, '⬇️ Yedeği indir'),
+      h('button', { type: 'button', class: 'ed-b', onclick: (e) => load(e.currentTarget) }, '🕰️ Geçmiş sürümler')),
+    listEl);
+}
+
 function openSettings(focus) {
   const c = app.content;
   const since = h('input', { class: 'ed-input', type: 'datetime-local', value: String(c.site.since || '').slice(0, 16) });
   since.addEventListener('input', () => { if (since.value) { c.site.since = since.value; c.site.sinceSet = true; markDirty(); } });
   const birthday = h('input', { class: 'ed-input', type: 'date', value: String(c.site.birthday || '').slice(0, 10) });
   birthday.addEventListener('input', () => { c.site.birthday = birthday.value; markDirty(); });
+  const myBirthday = h('input', { class: 'ed-input', type: 'date', value: String(c.site.myBirthday || '').slice(0, 10) });
+  myBirthday.addEventListener('input', () => { c.site.myBirthday = myBirthday.value; markDirty(); });
 
   const musicInfo = h('p', { class: 'ed-note' });
   const updateMusicInfo = () => {
@@ -1114,7 +1182,8 @@ function openSettings(focus) {
     dates: h('section', { class: 'ed-section' },
       h('h4', {}, '📅 Tarihler'),
       field('Birlikteliğimizin başladığı an', since, 'Sayaç, “Sayılarla biz” ve ay dönümü kutlamaları buna göre çalışır.'),
-      field('Sena’nın doğum günü (isteğe bağlı)', birthday, 'O gün sitede “İyi ki doğdun” sürprizi ve havai fişekler olur.')),
+      field('Sena’nın doğum günü (isteğe bağlı)', birthday, 'O gün sitede “İyi ki doğdun” sürprizi ve havai fişekler olur.'),
+      field('Senin doğum günün (isteğe bağlı)', myBirthday, '“Geleceğimiz” bölümündeki yaklaşan günlerde görünür.')),
     music: h('section', { class: 'ed-section' },
       h('h4', {}, '🎵 Şarkımız'),
       musicInfo,
@@ -1182,6 +1251,7 @@ function openSettings(focus) {
         href: `https://wa.me/?text=${encodeURIComponent(`Sana özel bir şey hazırladım 💌 ${shareUrl()}`)}`,
       }, '💬 WhatsApp’ta gönder'),
       h('p', { class: 'ed-note' }, '“/duzenle” kısmı olmadan olan adresi gönder. Düzenleme sayfası şifreli olduğu için Sena göremez.')),
+    backup: backupSection(),
     security: h('section', { class: 'ed-section' },
       h('h4', {}, '🔑 Şifre ve oturum'),
       h('div', { class: 'ed-grid3' }, pwOld, pwNew, pwNew2),
@@ -1237,6 +1307,8 @@ function checklist() {
     { done: phoneNotifyReady(c), text: 'Sena not bırakınca ya da kupon kullanınca telefonuna WhatsApp’tan haber gelsin', go: () => openSettings('notify') },
     { tip: true, text: 'Daha önce yüklediğin bütün fotoğraf ve şarkılar “🖼️ Yüklediklerim”de', go: () => openLibrary() },
     { tip: true, text: 'Mektubu kendi cümlelerinle kişiselleştir', go: () => app.go('letter') },
+    { tip: true, text: '“Geleceğimiz”e özel günlerinizi ve Sena için bir zaman kapsülü ekle', go: () => app.go('future') },
+    { tip: true, text: 'Ana sayfaya Sena’ya küçük bir not bırak; okuyunca sana haber gelir', go: () => app.go('home') },
     { tip: true, text: 'Sınav sorularını ikinize göre düzenle (✓ ile doğru cevabı seç)', go: () => app.go('quiz') },
     { tip: true, text: 'İstersen siteye soru-cevaplı özel bir kilit koy', go: () => openSettings('lock') },
   ];
@@ -1282,7 +1354,26 @@ const INBOX_TYPES = {
   sinav: { icon: '📝', label: 'Sınavı bitirdi' },
   kazi: { icon: '🎁', label: 'Kazı kazanı kazıdı' },
   gizli: { icon: '🤫', label: 'Gizli notu buldu' },
+  dusun: { icon: '💭', label: 'Seni düşündü' },
+  gelecek: { icon: '📮', label: 'Geleceğe bir mektup yazdı' },
+  kapsul: { icon: '⏳', label: 'Bir zaman kapsülünü açtı' },
+  okudu: { icon: '💌', label: 'Bıraktığın notu okudu' },
 };
+
+// Gelen kutusundaki hayali tek dokunuşla listeye ekle
+function addDreamFromInbox(it, btn) {
+  const list = app.content.dreams.items || (app.content.dreams.items = []);
+  if (list.some((d) => String(d.text || '').trim() === String(it.text || '').trim())) {
+    toast('Bu hayal zaten listede ✓');
+  } else {
+    list.push({ text: String(it.text || '').trim(), done: false });
+    app.rerender();
+    markDirty();
+    toast('Hayallerimize eklendi ✨');
+  }
+  btn.disabled = true;
+  btn.textContent = '✓ Listede';
+}
 
 async function loadInbox() {
   try {
@@ -1321,7 +1412,13 @@ async function openInbox() {
         h('div', { class: 'ed-msg-body' },
           h('p', { class: 'ed-msg-head' }, h('b', {}, t.label), it.test ? h('span', { class: 'ed-tag' }, 'senin denemen') : null),
           it.title ? h('p', { class: 'ed-msg-title' }, it.title) : null,
-          it.text ? h('p', { class: `ed-msg-text${it.type === 'not' || it.type === 'hayal' ? ' ed-quote' : ''}` }, it.text) : null,
+          it.sealed
+            ? h('p', { class: 'ed-msg-sealed' }, `🔒 Mühürlü · ${(() => { const at = parseLocal(it.openAt); return at ? `${formatDate(at, { weekday: true })} günü açılacak (${remaining(at)} kaldı)` : 'günü gelince açılacak'; })()}`)
+            : it.text ? h('p', { class: `ed-msg-text${['not', 'hayal', 'gelecek'].includes(it.type) ? ' ed-quote' : ''}` }, it.text) : null,
+          it.type === 'gelecek' && !it.sealed && it.openAt ? h('p', { class: 'ed-msg-meta' }, `📮 ${formatDate(parseLocal(it.openAt) || new Date())} günü açıldı`) : null,
+          it.type === 'hayal' && it.text ? h('button', {
+            type: 'button', class: 'ed-b small', onclick: (e) => addDreamFromInbox(it, e.currentTarget),
+          }, '✨ Hayallere ekle') : null,
           h('p', { class: 'ed-msg-meta' }, `${relTime(it.at)} · ${it.device || ''}`)),
         h('button', {
           type: 'button', class: 'ed-x small', title: 'Sil', 'aria-label': 'Sil',
@@ -1630,6 +1727,17 @@ export async function startEditor(appApi) {
   buildBar();
   document.addEventListener('app:render', decorate);
   document.addEventListener('click', onPageClick);
+  document.addEventListener('change', (e) => {
+    if (!state.editing || S.preview || !(e.target instanceof HTMLInputElement)) return;
+    const el = e.target;
+    if (el.dataset.input) {
+      setPath(app.content, el.dataset.input, el.value);
+      markDirty();
+    } else if (el.dataset.check) {
+      setPath(app.content, el.dataset.check, el.checked);
+      markDirty();
+    }
+  });
   decorate();
   refreshStatus();
   setupTabs();

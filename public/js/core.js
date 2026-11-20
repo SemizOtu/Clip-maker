@@ -18,6 +18,7 @@ export const CHAPTERS = [
   { key: 'reasons', slug: 'neden-sen' },
   { key: 'quiz', slug: 'sinav' },
   { key: 'dreams', slug: 'hayallerimiz' },
+  { key: 'future', slug: 'gelecegimiz' },
   { key: 'surprise', slug: 'surprizler' },
   { key: 'finale', slug: 'sonsuza-dek' },
 ];

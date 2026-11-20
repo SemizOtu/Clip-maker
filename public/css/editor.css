@@ -547,3 +547,22 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 }
 .ed-inbox-tip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
 .ed-inbox-tip .ed-b { margin: 0; }
+
+/* Geleceğimiz düzenleme */
+.ev-edit-list, .cap-edit-list { display: grid; gap: 12px; }
+.ev-edit { display: grid; grid-template-columns: auto 1fr; gap: 8px 10px; align-items: center; padding: 14px; border-radius: 18px; background: rgba(255, 255, 255, .9); box-shadow: var(--shadow); }
+.ev-ic { font-size: 1.6rem; }
+.ev-title { font-size: 1.15rem; font-weight: 600; }
+.ev-fields { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ev-fields .ed-date { max-width: 200px; }
+.ev-yearly { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--ink-soft); }
+.cap-edit { padding: 18px; border-radius: 16px; background: linear-gradient(170deg, #fffdf8, #f8eadf); box-shadow: 0 10px 20px rgba(92, 44, 20, .12); }
+.cap-date { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; font-size: .85rem; font-weight: 700; color: var(--ink-soft); }
+.cap-date .ed-date { max-width: 240px; }
+body.editing .think-btn { display: none; }
+body.editing .fut-when, body.editing .future-form textarea { opacity: .6; pointer-events: none; }
+.ed-love-note .ln-title { margin-top: 8px; text-align: center; }
+.ed-msg-sealed { margin: 4px 0; padding: 8px 12px; border-radius: 12px; background: #fff7e6; font-size: .9rem; font-weight: 600; color: #8a4a12; }
+.ed-msg-body .ed-b.small { margin-top: 6px; }
+.ed-backups { display: grid; gap: 6px; }
+.ed-backup-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px; background: #fff; border: 1px solid #f6d3dd; font-size: .88rem; }

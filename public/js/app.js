@@ -178,6 +178,7 @@ function showChapter(key, { defer = false } = {}) {
   stopBehaviors();
   $('#intro').classList.add('gone');
   $('#topbar').hidden = false;
+  $('#think-btn').hidden = state.editing;
   $$('.chapter').forEach((s) => {
     const on = s.dataset.ch === key;
     s.classList.toggle('active', on);
@@ -195,6 +196,8 @@ function startChapter(key) {
   if (state.current !== key) return;
   observeAll();
   startBehaviors(key);
+  // Deniz yeni bir not bıraktıysa ilk bölüm açılınca bir kez göster
+  F.showLoveNote();
 }
 
 function showIntro() {
@@ -204,6 +207,7 @@ function showIntro() {
   $$('.chapter').forEach((s) => s.classList.remove('active'));
   $('#intro').classList.remove('gone', 'opening');
   $('#topbar').hidden = true;
+  $('#think-btn').hidden = true;
   setScene('intro');
   state.current = null;
   updateTopbar();
@@ -229,6 +233,7 @@ function startBehaviors(key) {
     }
   }
   if (key === 'surprise' && !state.editing) requestAnimationFrame(() => F.initScratch(sec));
+  if (key === 'future' && !state.editing) state.stops.push(F.startFuture(sec));
   if (key === 'finale' && !state.editing) {
     F.resetNoButton();
     if (state.answered) F.startLoveWords(sec);
@@ -414,6 +419,7 @@ function bindEvents() {
       if (a === 'yes') { F.celebrate(); return; }
       if (a === 'no') { e.preventDefault(); F.flee(act); return; }
       if (a === 'slideshow') { F.openSlideshow(); return; }
+      if (a === 'install') { closeMenu(); F.installApp(); return; }
       if (a === 'quiz-start') { F.startQuiz(act.closest('[data-quiz]')); return; }
       if (a === 'scratch-again') {
         store.remove('ds:kazi');
@@ -460,6 +466,12 @@ function bindEvents() {
     }
     const ow = t.closest('[data-open-when]');
     if (ow) { F.openWhenLetter(Number(ow.dataset.openWhen), ow); return; }
+    const cap = t.closest('[data-capsule]');
+    if (cap) { F.openCapsule(Number(cap.dataset.capsule), cap); return; }
+    const ics = t.closest('[data-ics]');
+    if (ics) { F.downloadIcs(ics.dataset.ics); return; }
+    const think = t.closest('#think-btn');
+    if (think) { F.thinkOfYou(think); return; }
     if (t.closest('.envelope')) openEnvelope();
   });
 

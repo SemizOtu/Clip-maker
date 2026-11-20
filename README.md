@@ -32,6 +32,9 @@ kalp şeklinde havai fişeklerle biten bir final içerir.
 - **Sınav:** Her şıkkın solundaki yuvarlağa dokunarak doğru cevabı seç.
 - **Hayaller:** Soldaki yuvarlağa dokunarak “gerçekleşti” olarak işaretle.
 - **🤫 Gizli not:** “Sen & Ben” bölümünün altındaki kesik çizgili kutuda. Sena isimlerinize üç kez dokununca açılır; üstündeki ipucu yazısını da değiştirebilirsin. Notu boşaltırsan özellik kapanır.
+- **💌 Sena’ya not:** “Sen & Ben” bölümündeki kutuya yaz. Sena siteyi açınca bir kez karşısına çıkar, ana sayfada da durur; okuyunca sana haber gelir. Her yeni not yeniden gösterilir.
+- **🔮 Geleceğimiz:** Kendi özel günlerinizi (tatil, konser, taşınma…) tarihleriyle ekle; yıl/ay dönümleri ve doğum günleri kendiliğinden gelir. **Zaman kapsülü** ekleyip açılma zamanını seç: o gün gelene kadar içindeki yazı Sena’nın telefonuna hiç gönderilmez.
+- **🗂️ Yedekler (Ayarlar):** Her sabah otomatik yedek alınır. “Yedeği indir” ile bir kopyasını cihazına alabilir, “Geçmiş sürümler” ile istediğin günün hâline dönebilirsin.
 - **⚙️ Ayarlar:** İsimler, birlikteliğin başladığı an, Sena’nın doğum günü, şarkınız, bölüm adları, özel kilit, bildirimler, kaçan “Hayır” butonunun yazıları, şifre değiştirme.
 - **👁 Önizle:** Sena’nın göreceği hâli gösterir (önizlemedeki tıklamalar Gelen Kutusu’na düşmez).
 
@@ -68,14 +71,24 @@ Düzenleme moduna sitede bir bağlantı yoktur; sadece adresin sonuna `/duzenle`
 | V | Neden Sen? | Çevrilen sebep kartları, rastgele sebep, “Seni ne kadar seviyorum?” ölçeri |
 | VI | Beni Ne Kadar Tanıyorsun? | Kalpli puanlı küçük sınav |
 | VII | Hayallerimiz | Birlikte yapılacaklar listesi; Sena da yeni hayal önerebilir |
-| VIII | Sürprizler | Kazı kazan + aşk kuponları |
-| IX | Sonsuza Dek | Gece sahnesi, kalp şeklinde takımyıldız ve kayan yıldızlar, kaçan “Hayır”, kalpli havai fişekler ve Sena’dan sana not |
+| VIII | Geleceğimiz | Sıradaki özel güne canlı geri sayım, yaklaşan günler (telefon takvimine eklenebilir), zaman kapsülleri, Sena’nın geleceğe yazdığı mühürlü mektuplar |
+| IX | Sürprizler | Kazı kazan + aşk kuponları |
+| X | Sonsuza Dek | Gece sahnesi, kalp şeklinde takımyıldız ve kayan yıldızlar, kaçan “Hayır”, kalpli havai fişekler ve Sena’dan sana not |
 
 Arka planda süzülen kalplere dokununca patlayıp ışıldarlar; bilgisayarda imleç kalbe dönüşür,
 zarf ve polaroidler fareyi takip ederek hafifçe eğilir.
 
 Ay dönümlerinde, 100’ün katı olan günlerde, Sena’nın doğum gününde, Sevgililer Günü’nde
 ve yılbaşında site kendiliğinden kutlama yapar.
+
+Sena’nın ekranının sağ altında bir **“Seni düşündüm” kalbi** vardır: dokununca sana “Sena şu an seni düşünüyor 💗” mesajı gelir.
+Menüdeki **📲 Ana ekrana ekle** ile site telefonunda uygulama gibi kendi simgesiyle durur.
+
+## ⏰ Günlük hatırlatıcı
+
+Her sabah ~09:00’da WhatsApp’ına (bildirim kurduysan) tek bir mesaj gelir: yarın/bugün özel bir gün varsa,
+bir hafta sonra yıl dönümü ya da doğum günü varsa, bugün açılacak bir kapsül ya da Sena’nın bugün açılan
+“geleceğe mektubu” varsa. Söylenecek bir şey yoksa mesaj gelmez. Aynı görev her sabah yedeği de alır.
 
 ## 🔒 Gizlilik ve güvenlik
 
